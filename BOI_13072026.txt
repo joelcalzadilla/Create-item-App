@@ -1,0 +1,4 @@
+Build of instructions
+   1. execute grants
+   2. tables / pkg
+   
