@@ -53,6 +53,62 @@
 --   - TARGET Template IDs no longer need to be supplied by test scripts.
 --   - PLANNING_METHOD no longer hard-codes an Oracle EBS planning code.
 --     The code is resolved from the selected TARGET Template metadata.
+--
+-- JCALZADILLA - 31.08.2026 - V6:
+--   - Added explicit RAW_MATERIAL_ITEM Attribute support.
+--   - ENGINEERING_ITEM_FLAG now controls EBS ENG_ITEM_FLAG when supplied.
+--     ENGINEERING_STATUS remains the backward-compatible fallback.
+--   - HIMS is applied to MASTER Items through ATTRIBUTE14.
+--   - PRICE_PER_UOM is applied to TARGET Items through LIST_PRICE_PER_UNIT.
+--   - LEAD_TIME_DAYS is applied to TARGET Items through ATTRIBUTE15.
+--   - EXPENSE_ITEM_FLAG remains a Template Rule input only and is not
+--     written directly to an Oracle EBS Item Attribute.
+--
+-- JCALZADILLA - 31.08.2026 - V7:
+--   - RAW_MATERIAL_ITEM LEAD_TIME_DAYS is now applied to both the
+--     LEADTIME flexfield (ATTRIBUTE15) and the standard FULL_LEAD_TIME
+--     Item Attribute, per the confirmed Raw Material functional rule.
+--   - Existing V6 behavior and mappings remain unchanged.
+--
+-- JCALZADILLA - 01.09.2026 - V8:
+--   - MRP_PLANNING_CODE is treated as a MASTER-controlled Item Attribute.
+--   - When PLANNING_METHOD is supplied, its Oracle EBS code continues to
+--     be resolved from the selected TARGET Template metadata.
+--   - When PLANNING_METHOD is not supplied, the package now derives the
+--     MASTER MRP_PLANNING_CODE from the enabled MRP_PLANNING_CODE value
+--     of the selected TARGET Template(s).
+--   - If no selected TARGET Template defines MRP_PLANNING_CODE, the
+--     MASTER Template value is preserved.
+--   - Conflicting MRP_PLANNING_CODE values across selected TARGET
+--     Templates are rejected as invalid configuration.
+--   - No Oracle EBS planning code or Template ID is hard-coded.
+--
+-- JCALZADILLA - 01.09.2026 - V9:
+--   - Added explicit ADHESIVES BATCH_SIZE support.
+--   - BATCH_SIZE is read as a TARGET character Attribute and sent to
+--     Oracle EBS MTL_SYSTEM_ITEMS.ATTRIBUTE9 through PROCESS_ITEM
+--     P_ATTRIBUTE9.
+--   - ATTRIBUTE9 is the confirmed Global Data Elements DFF segment
+--     AVERAGE CONTAINER SIZE (Value Set 102943 / 20 Characters).
+--   - Existing V8 TARGET Template and MASTER-controlled MRP behavior
+--     remains unchanged.
+--
+-- JCALZADILLA - 01.09.2026 - V10:
+--   - Added explicit TARGET SHELF_LIFE_DAYS support for ADHESIVES.
+--   - SHELF_LIFE_DAYS is sent in the same PROCESS_ITEM call that applies
+--     the TARGET Template so templates with SHELF_LIFE_CODE = 2 pass
+--     Oracle EBS validation before the later TARGET Attribute update.
+--   - SHELF_LIFE_DAYS is also preserved in the TARGET Attribute update
+--     and API status handling.
+--   - Corrected V10 to support configuration-driven TARGET PLANNER and
+--     SHIPPABLE_ITEM_FLAG values.
+--   - PLANNER is mapped to PROCESS_ITEM P_PLANNER_CODE and
+--     SHIPPABLE_ITEM_FLAG is mapped to P_SHIPPABLE_ITEM_FLAG.
+--   - Both values are submitted in the same PROCESS_ITEM call that applies
+--     the TARGET Template, allowing request data to override invalid or
+--     incomplete template values without modifying Oracle EBS setup.
+--   - Existing V9 BATCH_SIZE / ATTRIBUTE9 and V8 MRP behavior remain
+--     unchanged.
 -- =====================================================================
 
 CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
@@ -1539,6 +1595,25 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             NUMBER;
 
         -- =================================================================
+        -- JCALZADILLA - 01.09.2026 - START CHANGE V8
+        -- Purpose:
+        -- Hold the MASTER-controlled MRP value derived from the selected
+        -- TARGET Template metadata when PLANNING_METHOD is not supplied.
+        -- =================================================================
+
+        l_target_template_mrp_count
+            NUMBER;
+
+        l_target_template_mrp_planning_code
+            NUMBER;
+
+        l_mrp_resolution_source
+            VARCHAR2(30);
+
+        -- JCALZADILLA - 01.09.2026 - END CHANGE V8
+        -- =================================================================
+
+        -- =================================================================
         -- JCALZADILLA - 27.08.2026 - END CHANGE
         -- =================================================================
 
@@ -1602,6 +1677,64 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
         l_planning_method
             VARCHAR2(4000);
+
+        -- =================================================================
+        -- JCALZADILLA - 31.08.2026 - START CHANGE
+        -- Purpose:
+        -- Hold the confirmed RAW_MATERIAL_ITEM Attribute values that are
+        -- now supported by the Oracle EBS Item API mappings.
+        -- =================================================================
+
+        l_engineering_item_flag
+            VARCHAR2(4000);
+
+        l_hims
+            VARCHAR2(4000);
+
+        l_price_per_uom
+            NUMBER;
+
+        l_lead_time_days
+            NUMBER;
+
+        -- =================================================================
+        -- JCALZADILLA - 01.09.2026 - START CHANGE V9
+        -- Purpose:
+        -- Hold the confirmed ADHESIVES Batch Size / Average Container Size
+        -- value stored in Oracle EBS MTL_SYSTEM_ITEMS.ATTRIBUTE9.
+        -- =================================================================
+
+        l_batch_size
+            VARCHAR2(4000);
+
+        -- =================================================================
+        -- JCALZADILLA - 01.09.2026 - END CHANGE V9
+        -- =================================================================
+
+        -- =================================================================
+        -- JCALZADILLA - 01.09.2026 - START CHANGE V10
+        -- Purpose:
+        -- Hold the item-specific TARGET Shelf Life Days value. It must be
+        -- supplied together with a TARGET Template that enables item shelf
+        -- life control (SHELF_LIFE_CODE = 2).
+        -- =================================================================
+
+        l_shelf_life_days
+            NUMBER;
+
+        l_planner
+            VARCHAR2(4000);
+
+        l_shippable_item_flag
+            VARCHAR2(4000);
+
+        -- =================================================================
+        -- JCALZADILLA - 01.09.2026 - END CHANGE V10
+        -- =================================================================
+
+        -- =================================================================
+        -- JCALZADILLA - 31.08.2026 - END CHANGE
+        -- =================================================================
 
         l_requested_mrp_planning_code
             NUMBER;
@@ -1966,33 +2099,90 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         WHERE ro.item_request_id = p_item_request_id;
 
 
+        -- =================================================================
+        -- JCALZADILLA - 31.08.2026 - START CHANGE
+        -- Purpose:
+        -- Prefer the explicit ENGINEERING_ITEM_FLAG application Attribute
+        -- for EBS ENG_ITEM_FLAG. Preserve ENGINEERING_STATUS as the
+        -- backward-compatible fallback used by the previously validated
+        -- Adhesive Coating flow.
+        -- =================================================================
+
         BEGIN
 
             SELECT
                 av.attribute_char_value
             INTO
-                l_engineering_status
+                l_engineering_item_flag
             FROM ops.adre_inv_item_attr_value av
-            JOIN ops.adre_inv_item_request_org ro
-              ON ro.request_org_id = av.request_org_id
             JOIN ops.adre_inv_item_attribute a
               ON a.item_attribute_id = av.item_attribute_id
-            WHERE ro.item_request_id = p_item_request_id
-              AND a.attribute_code = 'ENGINEERING_STATUS'
+            WHERE av.request_org_id = l_master_request_org_id
+              AND a.attribute_code = 'ENGINEERING_ITEM_FLAG'
               AND av.attribute_char_value IS NOT NULL
               AND ROWNUM = 1;
 
         EXCEPTION
             WHEN NO_DATA_FOUND THEN
-                l_engineering_status := NULL;
+                l_engineering_item_flag := NULL;
         END;
 
 
-        l_eng_item_flag :=
-            CASE
-                WHEN l_engineering_status IS NOT NULL THEN 'Y'
-                ELSE c_missing_char
+        IF l_engineering_item_flag IS NOT NULL THEN
+
+            l_engineering_item_flag :=
+                UPPER(TRIM(l_engineering_item_flag));
+
+
+            IF l_engineering_item_flag NOT IN ('Y', 'N') THEN
+
+                RAISE_APPLICATION_ERROR
+                (
+                    -20134,
+                    'ENGINEERING_ITEM_FLAG must be Y or N. VALUE=' ||
+                    l_engineering_item_flag
+                );
+
+            END IF;
+
+
+            l_eng_item_flag := l_engineering_item_flag;
+
+        ELSE
+
+            BEGIN
+
+                SELECT
+                    av.attribute_char_value
+                INTO
+                    l_engineering_status
+                FROM ops.adre_inv_item_attr_value av
+                JOIN ops.adre_inv_item_request_org ro
+                  ON ro.request_org_id = av.request_org_id
+                JOIN ops.adre_inv_item_attribute a
+                  ON a.item_attribute_id = av.item_attribute_id
+                WHERE ro.item_request_id = p_item_request_id
+                  AND a.attribute_code = 'ENGINEERING_STATUS'
+                  AND av.attribute_char_value IS NOT NULL
+                  AND ROWNUM = 1;
+
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    l_engineering_status := NULL;
             END;
+
+
+            l_eng_item_flag :=
+                CASE
+                    WHEN l_engineering_status IS NOT NULL THEN 'Y'
+                    ELSE c_missing_char
+                END;
+
+        END IF;
+
+        -- =================================================================
+        -- JCALZADILLA - 31.08.2026 - END CHANGE
+        -- =================================================================
 
 
         SELECT
@@ -2010,7 +2200,16 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                   'PLANNING_METHOD',
                   'OUTSIDE_PROCESSING',
                   'WIDTH',
-                  'TARGET_LENGTH'
+                  'TARGET_LENGTH',
+                  'ENGINEERING_ITEM_FLAG',
+                  'HIMS',
+                  'EXPENSE_ITEM_FLAG',
+                  'PRICE_PER_UOM',
+                  'LEAD_TIME_DAYS',
+                  'BATCH_SIZE',
+                  'SHELF_LIFE_DAYS',
+                  'PLANNER',
+                  'SHIPPABLE_ITEM_FLAG'
               )
           AND
           (
@@ -2469,25 +2668,113 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         END;
 
 
-        IF l_planning_method IS NOT NULL THEN
+        -- =================================================================
+        -- JCALZADILLA - 31.08.2026 - START CHANGE
+        -- Purpose:
+        -- HIMS is a MASTER RAW_MATERIAL_ITEM Attribute. Oracle EBS
+        -- metadata confirms that it is stored in MTL_SYSTEM_ITEMS.ATTRIBUTE14.
+        -- =================================================================
 
-            -- =========================================================
-            -- JCALZADILLA - 27.08.2026 - START CHANGE
-            -- Purpose:
-            -- Resolve the Oracle EBS MRP_PLANNING_CODE dynamically from
-            -- the TARGET Template metadata selected by the Template Rule.
-            --
-            -- No Oracle EBS planning code is hard-coded here.
-            -- =========================================================
+        BEGIN
+
+            SELECT
+                av.attribute_char_value
+            INTO
+                l_hims
+            FROM ops.adre_inv_item_attr_value av
+            JOIN ops.adre_inv_item_attribute a
+              ON a.item_attribute_id = av.item_attribute_id
+            WHERE av.request_org_id = l_master_request_org_id
+              AND a.attribute_code = 'HIMS'
+              AND av.attribute_char_value IS NOT NULL
+              AND ROWNUM = 1;
+
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                l_hims := NULL;
+        END;
+
+
+        -- =================================================================
+        -- JCALZADILLA - 01.09.2026 - START CHANGE V8
+        -- Purpose:
+        -- Resolve the MASTER-controlled MRP_PLANNING_CODE before applying
+        -- MASTER Attributes.
+        --
+        -- Priority:
+        --   1. If PLANNING_METHOD is supplied, resolve its code from the
+        --      selected TARGET Template metadata using REPORT_USER_VALUE.
+        --   2. Otherwise, if the selected TARGET Template(s) explicitly
+        --      define one MRP_PLANNING_CODE, apply that value to MASTER.
+        --   3. Otherwise do not send MRP_PLANNING_CODE and preserve the
+        --      value established by the MASTER Template.
+        --
+        -- Multiple distinct MRP values across TARGET Templates are invalid
+        -- because MRP_PLANNING_CODE is MASTER controlled.
+        -- =================================================================
+
+        l_requested_mrp_planning_code      := apps.fnd_api.g_miss_num;
+        l_target_template_mrp_count        := 0;
+        l_target_template_mrp_planning_code := NULL;
+        l_mrp_resolution_source            := 'NOT SENT';
+
+
+        SELECT
+            COUNT
+            (
+                DISTINCT TO_NUMBER(TRIM(ta.attribute_value))
+            ),
+            MIN
+            (
+                TO_NUMBER(TRIM(ta.attribute_value))
+            )
+        INTO
+            l_target_template_mrp_count,
+            l_target_template_mrp_planning_code
+        FROM ops.adre_inv_item_request_org ro
+        JOIN apps.mtl_item_templ_attributes ta
+          ON ta.template_id = ro.ebs_template_id
+        WHERE ro.item_request_id = p_item_request_id
+          AND ro.organization_role = 'TARGET'
+          AND ro.ebs_template_id IS NOT NULL
+          AND UPPER(TRIM(ta.attribute_name)) =
+              'MTL_SYSTEM_ITEMS.MRP_PLANNING_CODE'
+          AND ta.enabled_flag = 'Y'
+          AND ta.attribute_value IS NOT NULL;
+
+
+        IF l_target_template_mrp_count > 1 THEN
+
+            RAISE_APPLICATION_ERROR
+            (
+                -20134,
+                'Selected TARGET Templates contain conflicting MASTER-controlled MRP_PLANNING_CODE values. ' ||
+                'ITEM_REQUEST_ID=' ||
+                p_item_request_id
+            );
+
+        END IF;
+
+
+        -- =========================================================
+        -- JCALZADILLA - 27.08.2026 - START CHANGE
+        -- Purpose:
+        -- Resolve the Oracle EBS MRP_PLANNING_CODE dynamically from
+        -- the TARGET Template metadata selected by the Template Rule.
+        --
+        -- No Oracle EBS planning code is hard-coded here.
+        -- =========================================================
+
+        IF l_planning_method IS NOT NULL THEN
 
             SELECT
                 COUNT
                 (
-                    DISTINCT TO_NUMBER(ta.attribute_value)
+                    DISTINCT TO_NUMBER(TRIM(ta.attribute_value))
                 ),
                 MIN
                 (
-                    TO_NUMBER(ta.attribute_value)
+                    TO_NUMBER(TRIM(ta.attribute_value))
                 )
             INTO
                 l_mrp_mapping_count,
@@ -2529,10 +2816,31 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
             END IF;
 
-            -- =========================================================
-            -- JCALZADILLA - 27.08.2026 - END CHANGE
-            -- =========================================================
 
+            l_mrp_resolution_source := 'PLANNING_METHOD';
+
+        ELSIF l_target_template_mrp_count = 1 THEN
+
+            l_requested_mrp_planning_code :=
+                l_target_template_mrp_planning_code;
+
+            l_mrp_resolution_source := 'TARGET_TEMPLATE';
+
+        END IF;
+
+        -- =========================================================
+        -- JCALZADILLA - 27.08.2026 - END CHANGE
+        -- =========================================================
+
+
+        IF    l_planning_method            IS NOT NULL
+           OR l_target_template_mrp_count  = 1
+           OR l_hims                       IS NOT NULL
+           OR l_engineering_item_flag      IS NOT NULL
+        THEN
+
+        -- JCALZADILLA - 01.09.2026 - END CHANGE V8
+        -- =================================================================
 
             BEGIN
                 apps.fnd_msg_pub.initialize;
@@ -2562,6 +2870,14 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                 p_organization_id     => l_master_org_id,
 
                 p_mrp_planning_code   => l_requested_mrp_planning_code,
+
+                -- =========================================================
+                -- JCALZADILLA - 31.08.2026 - START CHANGE
+                -- RAW_MATERIAL_ITEM supported MASTER Attributes.
+                -- =========================================================
+                p_eng_item_flag       => l_eng_item_flag,
+                p_attribute14         => f_optional_char(l_hims),
+                -- JCALZADILLA - 31.08.2026 - END CHANGE
 
                 p_item_number         => l_ebs_item_number,
                 p_segment1            => l_item_segment1,
@@ -2662,9 +2978,19 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                 (
                     l_api_failure_message,
                     'PLANNING_METHOD=' ||
-                    l_planning_method ||
+                    NVL(l_planning_method, 'NOT SENT') ||
                     ', MRP_PLANNING_CODE=' ||
-                    l_requested_mrp_planning_code
+                    CASE
+                        WHEN l_mrp_resolution_source = 'NOT SENT'
+                            THEN 'NOT SENT'
+                        ELSE TO_CHAR(l_requested_mrp_planning_code)
+                    END ||
+                    ', MRP_SOURCE=' ||
+                    l_mrp_resolution_source ||
+                    ', ENGINEERING_ITEM_FLAG=' ||
+                    NVL(l_engineering_item_flag, 'NOT EXPLICITLY PROVIDED') ||
+                    ', HIMS=' ||
+                    NVL(l_hims, 'NOT SENT')
                 );
 
                 pcd_append_text
@@ -2695,7 +3021,12 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                       SELECT 1
                       FROM ops.adre_inv_item_attribute a
                       WHERE a.item_attribute_id = av.item_attribute_id
-                        AND a.attribute_code = 'PLANNING_METHOD'
+                        AND a.attribute_code IN
+                            (
+                                'PLANNING_METHOD',
+                                'ENGINEERING_ITEM_FLAG',
+                                'HIMS'
+                            )
                   );
 
 
@@ -2719,10 +3050,23 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             pcd_append_text
             (
                 x_message,
-                'MASTER application Attribute applied: PLANNING_METHOD=' ||
-                l_planning_method ||
-                ' -> MRP_PLANNING_CODE=' ||
-                l_requested_mrp_planning_code
+                'MASTER application Attributes applied: PLANNING_METHOD=' ||
+                NVL(l_planning_method, 'NOT SENT') ||
+                ', MRP_PLANNING_CODE=' ||
+                CASE
+                    WHEN l_mrp_resolution_source = 'NOT SENT'
+                        THEN 'NOT SENT'
+                    ELSE TO_CHAR(l_requested_mrp_planning_code)
+                END ||
+                ', MRP_SOURCE=' ||
+                l_mrp_resolution_source ||
+                ', ENGINEERING_ITEM_FLAG=' ||
+                CASE
+                    WHEN l_eng_item_flag = c_missing_char THEN 'NOT SENT'
+                    ELSE l_eng_item_flag
+                END ||
+                ', HIMS=' ||
+                NVL(l_hims, 'NOT SENT')
             );
 
         END IF;
@@ -2818,6 +3162,31 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             l_width_uom                        := NULL;
             l_target_length                    := NULL;
             l_target_length_uom                := NULL;
+
+            -- =================================================================
+            -- JCALZADILLA - 31.08.2026 - START CHANGE
+            -- Reset RAW_MATERIAL_ITEM TARGET Attribute values per Organization.
+            -- =================================================================
+            l_price_per_uom                    := NULL;
+            l_lead_time_days                   := NULL;
+            -- JCALZADILLA - 31.08.2026 - END CHANGE
+
+            -- =================================================================
+            -- JCALZADILLA - 01.09.2026 - START CHANGE V9
+            -- Reset ADHESIVES Batch Size per TARGET Organization.
+            -- =================================================================
+            l_batch_size                       := NULL;
+            -- JCALZADILLA - 01.09.2026 - END CHANGE V9
+
+            -- =================================================================
+            -- JCALZADILLA - 01.09.2026 - START CHANGE V10
+            -- Reset item-specific TARGET Shelf Life Days per Organization.
+            -- =================================================================
+            l_shelf_life_days                  := NULL;
+            l_planner                          := NULL;
+            l_shippable_item_flag              := NULL;
+            -- JCALZADILLA - 01.09.2026 - END CHANGE V10
+
             l_target_dimension_uom_code        := apps.fnd_api.g_miss_char;
             l_target_unit_width                := apps.fnd_api.g_miss_num;
             l_target_unit_length               := apps.fnd_api.g_miss_num;
@@ -2988,6 +3357,94 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             -- has been assigned to the TARGET organization.
             -- =========================================================
 
+            -- =================================================================
+            -- JCALZADILLA - 01.09.2026 - START CHANGE V10
+            -- Purpose:
+            -- Read SHELF_LIFE_DAYS before applying the TARGET Template.
+            -- Oracle EBS validates SHELF_LIFE_CODE and SHELF_LIFE_DAYS in
+            -- the same PROCESS_ITEM transaction. A later update is too late
+            -- when the Template itself sets SHELF_LIFE_CODE = 2.
+            -- =================================================================
+
+            SELECT
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'SHELF_LIFE_DAYS'
+                        THEN av.attribute_number_value
+                    END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'PLANNER'
+                        THEN av.attribute_char_value
+                    END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'SHIPPABLE_ITEM_FLAG'
+                        THEN av.attribute_char_value
+                    END
+                )
+            INTO
+                l_shelf_life_days,
+                l_planner,
+                l_shippable_item_flag
+            FROM ops.adre_inv_item_attr_value av
+            JOIN ops.adre_inv_item_attribute a
+              ON a.item_attribute_id = av.item_attribute_id
+            WHERE av.request_org_id = r_target.request_org_id
+              AND a.attribute_code IN
+                  (
+                      'SHELF_LIFE_DAYS',
+                      'PLANNER',
+                      'SHIPPABLE_ITEM_FLAG'
+                  );
+
+
+            IF l_shelf_life_days IS NOT NULL
+               AND l_shelf_life_days <= 0
+            THEN
+
+                RAISE_APPLICATION_ERROR
+                (
+                    -20135,
+                    'SHELF_LIFE_DAYS must be greater than zero. VALUE=' ||
+                    TO_CHAR(l_shelf_life_days)
+                );
+
+            END IF;
+
+
+            l_planner :=
+                NULLIF(TRIM(l_planner), '');
+
+
+            IF l_shippable_item_flag IS NOT NULL THEN
+
+                l_shippable_item_flag :=
+                    UPPER(TRIM(l_shippable_item_flag));
+
+
+                IF l_shippable_item_flag NOT IN ('Y', 'N') THEN
+
+                    RAISE_APPLICATION_ERROR
+                    (
+                        -20136,
+                        'SHIPPABLE_ITEM_FLAG must be Y or N. VALUE=' ||
+                        l_shippable_item_flag
+                    );
+
+                END IF;
+
+            END IF;
+
+            -- JCALZADILLA - 01.09.2026 - END CHANGE V10
+            -- =================================================================
+
+
             IF r_target.ebs_template_id IS NOT NULL THEN
 
                 SELECT
@@ -3047,6 +3504,33 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
                     p_mrp_planning_code   =>
                         l_master_mrp_planning_code,
+
+                    -- =========================================================
+                    -- JCALZADILLA - 01.09.2026 - START CHANGE V10
+                    -- Item-specific Shelf Life Days must be submitted in the
+                    -- same call that applies the TARGET Template.
+                    -- =========================================================
+                    p_shelf_life_days     =>
+                        NVL
+                        (
+                            l_shelf_life_days,
+                            apps.fnd_api.g_miss_num
+                        ),
+
+                    p_planner_code        =>
+                        NVL
+                        (
+                            l_planner,
+                            apps.fnd_api.g_miss_char
+                        ),
+
+                    p_shippable_item_flag =>
+                        NVL
+                        (
+                            l_shippable_item_flag,
+                            apps.fnd_api.g_miss_char
+                        ),
+                    -- JCALZADILLA - 01.09.2026 - END CHANGE V10
 
                     p_item_number         =>
                         l_ebs_item_number,
@@ -3298,7 +3782,16 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     ': ' ||
                     l_target_template_name ||
                     ' / ' ||
-                    r_target.ebs_template_id
+                    r_target.ebs_template_id ||
+                    ', SHELF_LIFE_DAYS=' ||
+                    CASE
+                        WHEN l_shelf_life_days IS NULL THEN 'NOT SENT'
+                        ELSE TO_CHAR(l_shelf_life_days)
+                    END ||
+                    ', PLANNER=' ||
+                    NVL(l_planner, 'NOT SENT') ||
+                    ', SHIPPABLE_ITEM_FLAG=' ||
+                    NVL(l_shippable_item_flag, 'NOT SENT')
                 );
 
             ELSE
@@ -3329,6 +3822,12 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             -- WIDTH              -> UNIT_WIDTH
             -- TARGET_LENGTH      -> UNIT_LENGTH
             -- WIDTH/LENGTH UOM   -> DIMENSION_UOM_CODE = IN
+            -- PRICE_PER_UOM      -> LIST_PRICE_PER_UNIT
+            -- LEAD_TIME_DAYS     -> ATTRIBUTE15
+            -- BATCH_SIZE          -> ATTRIBUTE9 (AVERAGE CONTAINER SIZE)
+            -- SHELF_LIFE_DAYS     -> SHELF_LIFE_DAYS
+            -- PLANNER             -> PLANNER_CODE
+            -- SHIPPABLE_ITEM_FLAG -> SHIPPABLE_ITEM_FLAG
             -- =================================================================
 
             SELECT
@@ -3366,13 +3865,69 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                         WHEN a.attribute_code = 'TARGET_LENGTH'
                         THEN av.value_uom_code
                     END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'PRICE_PER_UOM'
+                        THEN av.attribute_number_value
+                    END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'LEAD_TIME_DAYS'
+                        THEN av.attribute_number_value
+                    END
+                ),
+                -- =========================================================
+                -- JCALZADILLA - 01.09.2026 - START CHANGE V9
+                -- ADHESIVES Batch Size is a character DFF value.
+                -- =========================================================
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'BATCH_SIZE'
+                        THEN av.attribute_char_value
+                    END
+                ),
+                -- JCALZADILLA - 01.09.2026 - END CHANGE V9
+                -- =========================================================
+                -- JCALZADILLA - 01.09.2026 - START CHANGE V10
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'SHELF_LIFE_DAYS'
+                        THEN av.attribute_number_value
+                    END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'PLANNER'
+                        THEN av.attribute_char_value
+                    END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'SHIPPABLE_ITEM_FLAG'
+                        THEN av.attribute_char_value
+                    END
                 )
+                -- JCALZADILLA - 01.09.2026 - END CHANGE V10
             INTO
                 l_outside_processing,
                 l_width,
                 l_width_uom,
                 l_target_length,
-                l_target_length_uom
+                l_target_length_uom,
+                l_price_per_uom,
+                l_lead_time_days,
+                l_batch_size,
+                l_shelf_life_days,
+                l_planner,
+                l_shippable_item_flag
             FROM ops.adre_inv_item_attr_value av
             JOIN ops.adre_inv_item_attribute a
               ON a.item_attribute_id = av.item_attribute_id
@@ -3381,14 +3936,26 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                   (
                       'OUTSIDE_PROCESSING',
                       'WIDTH',
-                      'TARGET_LENGTH'
+                      'TARGET_LENGTH',
+                      'PRICE_PER_UOM',
+                      'LEAD_TIME_DAYS',
+                      'BATCH_SIZE',
+                      'SHELF_LIFE_DAYS',
+                      'PLANNER',
+                      'SHIPPABLE_ITEM_FLAG'
                   );
 
 
             l_target_attr_value_count :=
                   CASE WHEN l_outside_processing IS NOT NULL THEN 1 ELSE 0 END
                 + CASE WHEN l_width              IS NOT NULL THEN 1 ELSE 0 END
-                + CASE WHEN l_target_length      IS NOT NULL THEN 1 ELSE 0 END;
+                + CASE WHEN l_target_length      IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_price_per_uom      IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_lead_time_days     IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_batch_size          IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_shelf_life_days     IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_planner             IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_shippable_item_flag IS NOT NULL THEN 1 ELSE 0 END;
 
 
             IF l_target_attr_value_count > 0 THEN
@@ -3415,6 +3982,37 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     l_outside_processing := apps.fnd_api.g_miss_char;
 
                 END IF;
+
+
+                -- =========================================================
+                -- JCALZADILLA - 01.09.2026 - START CHANGE V9
+                -- Normalize the confirmed character DFF value before it is
+                -- sent to Oracle EBS.
+                -- =========================================================
+                l_batch_size := TRIM(l_batch_size);
+                -- JCALZADILLA - 01.09.2026 - END CHANGE V9
+
+                -- =========================================================
+                -- JCALZADILLA - 01.09.2026 - START CHANGE V10
+                -- Normalize TARGET Planner and Shippable values before the
+                -- later Organization Attribute update.
+                -- =========================================================
+                l_planner := NULLIF(TRIM(l_planner), '');
+
+                IF l_shippable_item_flag IS NOT NULL THEN
+                    l_shippable_item_flag :=
+                        UPPER(TRIM(l_shippable_item_flag));
+
+                    IF l_shippable_item_flag NOT IN ('Y', 'N') THEN
+                        RAISE_APPLICATION_ERROR
+                        (
+                            -20136,
+                            'SHIPPABLE_ITEM_FLAG must be Y or N. VALUE=' ||
+                            l_shippable_item_flag
+                        );
+                    END IF;
+                END IF;
+                -- JCALZADILLA - 01.09.2026 - END CHANGE V10
 
 
                 IF l_width IS NOT NULL THEN
@@ -3486,6 +4084,84 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
                     p_unit_length             =>
                         l_target_unit_length,
+
+                    -- =========================================================
+                    -- JCALZADILLA - 31.08.2026 - START CHANGE
+                    -- RAW_MATERIAL_ITEM supported TARGET Attributes.
+                    -- =========================================================
+                    p_list_price_per_unit     =>
+                        NVL
+                        (
+                            l_price_per_uom,
+                            apps.fnd_api.g_miss_num
+                        ),
+
+                    p_attribute15             =>
+                        CASE
+                            WHEN l_lead_time_days IS NULL
+                                THEN apps.fnd_api.g_miss_char
+                            ELSE
+                                TO_CHAR
+                                (
+                                    l_lead_time_days,
+                                    'TM9',
+                                    'NLS_NUMERIC_CHARACTERS=''.,'''
+                                )
+                        END,
+
+                    -- =========================================================
+                    -- JCALZADILLA - 01.09.2026 - START CHANGE V9
+                    -- ADHESIVES Batch Size -> Global Data Elements
+                    -- AVERAGE CONTAINER SIZE -> MTL_SYSTEM_ITEMS.ATTRIBUTE9.
+                    -- =========================================================
+                    p_attribute9              =>
+                        NVL
+                        (
+                            l_batch_size,
+                            apps.fnd_api.g_miss_char
+                        ),
+                    -- JCALZADILLA - 01.09.2026 - END CHANGE V9
+
+                    -- =========================================================
+                    -- JCALZADILLA - 01.09.2026 - START CHANGE V10
+                    -- Preserve the item-specific Shelf Life Days during the
+                    -- TARGET application Attribute update.
+                    -- =========================================================
+                    p_shelf_life_days         =>
+                        NVL
+                        (
+                            l_shelf_life_days,
+                            apps.fnd_api.g_miss_num
+                        ),
+
+                    p_planner_code              =>
+                        NVL
+                        (
+                            l_planner,
+                            apps.fnd_api.g_miss_char
+                        ),
+
+                    p_shippable_item_flag       =>
+                        NVL
+                        (
+                            l_shippable_item_flag,
+                            apps.fnd_api.g_miss_char
+                        ),
+                    -- JCALZADILLA - 01.09.2026 - END CHANGE V10
+
+                    -- =========================================================
+                    -- JCALZADILLA - 31.08.2026 - START CHANGE V7
+                    -- Raw Material Lead Time is stored in both the LEADTIME
+                    -- flexfield and the standard Oracle EBS Item Attribute.
+                    -- =========================================================
+                    p_full_lead_time          =>
+                        NVL
+                        (
+                            l_lead_time_days,
+                            apps.fnd_api.g_miss_num
+                        ),
+                    -- JCALZADILLA - 31.08.2026 - END CHANGE V7
+                    -- JCALZADILLA - 31.08.2026 - END CHANGE
 
                     p_item_number             =>
                         l_ebs_item_number,
@@ -3631,7 +4307,13 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                                 (
                                     'OUTSIDE_PROCESSING',
                                     'WIDTH',
-                                    'TARGET_LENGTH'
+                                    'TARGET_LENGTH',
+                                    'PRICE_PER_UOM',
+                                    'LEAD_TIME_DAYS',
+                                    'BATCH_SIZE',
+                                    'SHELF_LIFE_DAYS',
+                                    'PLANNER',
+                                    'SHIPPABLE_ITEM_FLAG'
                                 )
                       );
 
@@ -3680,7 +4362,33 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     CASE
                         WHEN l_target_length IS NULL THEN 'NOT SENT'
                         ELSE TO_CHAR(l_target_unit_length) || ' IN'
-                    END
+                    END ||
+                    ', PRICE_PER_UOM=' ||
+                    CASE
+                        WHEN l_price_per_uom IS NULL THEN 'NOT SENT'
+                        ELSE TO_CHAR(l_price_per_uom)
+                    END ||
+                    ', LEAD_TIME_DAYS=' ||
+                    CASE
+                        WHEN l_lead_time_days IS NULL THEN 'NOT SENT'
+                        ELSE TO_CHAR(l_lead_time_days) ||
+                             ' (ATTRIBUTE15 + FULL_LEAD_TIME)'
+                    END ||
+                    ', BATCH_SIZE=' ||
+                    CASE
+                        WHEN l_batch_size IS NULL THEN 'NOT SENT'
+                        ELSE l_batch_size ||
+                             ' (ATTRIBUTE9 / AVERAGE CONTAINER SIZE)'
+                    END ||
+                    ', SHELF_LIFE_DAYS=' ||
+                    CASE
+                        WHEN l_shelf_life_days IS NULL THEN 'NOT SENT'
+                        ELSE TO_CHAR(l_shelf_life_days)
+                    END ||
+                    ', PLANNER=' ||
+                    NVL(l_planner, 'NOT SENT') ||
+                    ', SHIPPABLE_ITEM_FLAG=' ||
+                    NVL(l_shippable_item_flag, 'NOT SENT')
                 );
 
             END IF;
