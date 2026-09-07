@@ -1,4 +1,42 @@
 -- =====================================================================
+-- ADHESIVES RESEARCH - APPS.ADRE_CREATE_INV_ITEM
+-- V15 - 07.09.2026
+--
+-- Functional change:
+--   RAW_MATERIAL_ITEM EBS User Item Type is resolved from the selected
+--   TARGET Template metadata instead of being forced from DIVISION.
+--
+-- Confirmed by real EBS template metadata:
+--   PURCHASING GR / 105 -> ITEM_TYPE = P  (Purchased item)
+--   EXPENSE GR    / 106 -> ITEM_TYPE = EX (Expenses)
+--
+-- No P/EX value is hard-coded in the package. The code is read from
+-- MTL_ITEM_TEMPL_ATTRIBUTES for the resolved TARGET Template.
+--
+-- This preserves V13/V14 Division-based User Item Type handling for the
+-- other Item Types and preserves all prior Caron corrections.
+-- =====================================================================
+
+-- =====================================================================
+-- ADHESIVES RESEARCH - APPS.ADRE_CREATE_INV_ITEM
+-- V14 - 07.09.2026
+--
+-- Functional change:
+--   Support CONSTRUCTION as an independent configuration-driven TARGET
+--   application attribute mapped to MTL_SYSTEM_ITEMS.ATTRIBUTE3.
+--
+-- Behavior:
+--   1. If a staged CONSTRUCTION value exists, it is authoritative and is
+--      sent directly to ATTRIBUTE3.
+--   2. Otherwise, preserve V13 behavior for Adhesives and derive
+--      CONSTRUCTION from PERCENT_SOLIDS + WEIGHT_PER_GALLON.
+--   3. No LINER_COATING-specific Construction text is hard-coded here.
+--      Applicability/value are supplied through OPS configuration/staging.
+--
+-- This version preserves all V13 FIX1 Caron corrections.
+-- =====================================================================
+
+-- =====================================================================
 -- JCALZADILLA - 25.08.2026 - START CHANGE
 -- Purpose:
 -- Create the ADRE_CREATE_INV_ITEM package body for the final
@@ -109,6 +147,76 @@
 --     incomplete template values without modifying Oracle EBS setup.
 --   - Existing V9 BATCH_SIZE / ATTRIBUTE9 and V8 MRP behavior remain
 --     unchanged.
+--
+-- JCALZADILLA - 04.09.2026 - V11:
+--   - Moved confirmed automatic Planner business-rule resolution from
+--     TEST scripts into APPS.ADRE_CREATE_INV_ITEM.
+--   - Planner rules use Item Type and Item Number prefix:
+--       ADHESIVE_COATING / SLIT_*: SP -> 14, otherwise -> 1.
+--       ADHESIVES / LINER_COATING / CONVERTING: all prefixes -> 1.
+--       RAW_MATERIAL_ITEM: no automatic rule pending business confirmation.
+--   - Business Planner 1/14 is resolved to the actual active Oracle EBS
+--     PLANNER_CODE in APPS.MTL_PLANNERS for each TARGET Organization.
+--   - The resolved Planner updates the staged PLANNER Attribute before
+--     required dynamic Attribute validation.
+--   - PLANNER applicability remains configuration-driven through
+--     OPS.ADRE_INV_ITEM_TYPE_ATTR with TARGET scope.
+--   - V11 does not INSERT new Attribute rows; the request staging layer
+--     must create the configured PLANNER row. This preserves the existing
+--     APPS SELECT/UPDATE privilege model on OPS.ADRE_INV_ITEM_ATTR_VALUE.
+--   - No EBS Organization ID, Template ID, or formatted Planner Code is
+--     hard-coded.
+--
+-- JCALZADILLA - 04.09.2026 - V13 FIX1:
+--   - Compile-only correction. Removed P_ITEM_TYPE from the initial CREATE
+--     convenience overload of EGO_ITEM_PUB.PROCESS_ITEM. User Item Type is
+--     still applied immediately afterward in APPLY_MASTER_ATTRIBUTES through
+--     the full PROCESS_ITEM overload. No functional V13 rule was removed.
+--
+-- JCALZADILLA - 04.09.2026 - V13:
+--   - Incorporated Caron Wills' real-data review corrections for ADHESIVES.
+--   - Requested By / request INITIATOR is written to Item DFF ATTRIBUTE7
+--     (Global Data Elements / INITIATOR).
+--   - CONSTRUCTION is written to Item DFF ATTRIBUTE3 and is built from
+--     PERCENT_SOLIDS and WEIGHT_PER_GALLON as confirmed by Caron.
+--   - WEIGHT_PER_GALLON is no longer written to Physical Attributes
+--     UNIT_WEIGHT / WEIGHT_UOM_CODE. When supplied, those fields are
+--     explicitly cleared so prior provisional V12 data is removed.
+--   - LEAD_TIME_DAYS continues to populate ATTRIBUTE15 for all applicable
+--     Items, but FULL_LEAD_TIME is populated only for RAW_MATERIAL_ITEM.
+--     For non-raw Items with LEAD_TIME_DAYS supplied, FULL_LEAD_TIME is
+--     explicitly cleared so Oracle can calculate make-item lead time.
+--   - EBS User Item Type is resolved dynamically from the request DIVISION
+--     category against the active EBS ITEM_TYPE lookup; no lookup code is
+--     hard-coded. The resolved value is applied to MASTER and TARGET.
+--   - LONG_DESCRIPTION is synchronized from the request, including explicit
+--     NULL, so Caron-confirmed blank Long Description can be enforced.
+--   - Existing V12 PDR_NUMBER, PERCENT_SOLIDS, Planner, Shelf Life,
+--     Batch Size and other supported mappings remain unchanged.
+--
+-- JCALZADILLA - 04.09.2026 - V12 FIX1:
+--   - Corrected the TARGET Attribute reader so PDR_NUMBER,
+--     PERCENT_SOLIDS, and WEIGHT_PER_GALLON are included in the
+--     attribute_code filter used before APPLY_TARGET_ATTRIBUTES.
+--   - Corrected diagnostic output so these three values are reported
+--     during TARGET Attribute processing, not during TARGET Template
+--     application.
+--   - No new functional mapping was introduced; this is a V12 bug fix.
+--
+-- JCALZADILLA - 04.09.2026 - V12:
+--   - Added Caron-supplied ADHESIVES Item Attributes required for V33.
+--   - PDR_NUMBER is mapped to MTL_SYSTEM_ITEMS.ATTRIBUTE1 through
+--     PROCESS_ITEM P_ATTRIBUTE1.
+--   - PERCENT_SOLIDS is mapped to MTL_SYSTEM_ITEMS.ATTRIBUTE16 through
+--     PROCESS_ITEM P_ATTRIBUTE16.
+--   - WEIGHT_PER_GALLON is provisionally mapped to the Oracle EBS
+--     Physical Attributes fields UNIT_WEIGHT / WEIGHT_UOM_CODE through
+--     PROCESS_ITEM P_UNIT_WEIGHT / P_WEIGHT_UOM_CODE.
+--   - The Weight UOM is supplied by request staging; no technical UOM
+--     code is hard-coded in the package.
+--   - The Weight/Gallon interpretation is provisional pending Caron
+--     validation. DATE OF MANUFACTURE is intentionally not mapped in V12.
+--   - Existing V11 automatic Planner behavior remains unchanged.
 -- =====================================================================
 
 CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
@@ -909,6 +1017,365 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     -- Attributes without a confirmed mapping remain application-only.
     -- =================================================================
 
+    -- =================================================================
+    -- JCALZADILLA - 04.09.2026 - V11 FIX 1
+    -- F_GET_SESSION_USER is evaluated in PL/SQL and stored in a local
+    -- variable before SQL DML. Private package-body functions cannot be
+    -- referenced directly by the SQL engine.
+    --
+    -- JCALZADILLA - 04.09.2026 - V11
+    -- Resolve the confirmed automatic Planner business rule and update
+    -- the staged TARGET PLANNER Attribute before required validation.
+    --
+    -- The TEST/APEX staging layer creates the configured PLANNER row.
+    -- This procedure owns the reusable business-rule and EBS-code
+    -- resolution logic.
+    -- =================================================================
+
+    PROCEDURE pcd_apply_auto_planner
+    (
+        p_item_request_id IN            NUMBER,
+        io_message        IN OUT NOCOPY CLOB
+    )
+    IS
+
+        l_item_type_id
+            NUMBER;
+
+        l_item_type_code
+            VARCHAR2(100);
+
+        l_item_number
+            VARCHAR2(240);
+
+        l_item_prefix
+            VARCHAR2(100);
+
+        l_business_planner
+            VARCHAR2(30);
+
+        l_planner_attribute_id
+            NUMBER;
+
+        l_planner_config_count
+            NUMBER;
+
+        l_target_count
+            NUMBER;
+
+        l_active_planner_count
+            NUMBER;
+
+        l_resolved_planner_code
+            VARCHAR2(30);
+
+        l_staged_planner_count
+            NUMBER;
+
+        l_session_user
+            VARCHAR2(100);
+
+    BEGIN
+
+        -- -------------------------------------------------------------
+        -- Resolve the Request and functional Item Type.
+        -- -------------------------------------------------------------
+
+        SELECT
+            r.item_type_id,
+            UPPER(TRIM(it.item_type_code)),
+            r.item_number
+        INTO
+            l_item_type_id,
+            l_item_type_code,
+            l_item_number
+        FROM ops.adre_inv_item_request r
+        JOIN ops.adre_inv_item_type it
+          ON it.item_type_id = r.item_type_id
+        WHERE r.item_request_id = p_item_request_id;
+
+
+        l_item_prefix :=
+            UPPER
+            (
+                TRIM
+                (
+                    REGEXP_SUBSTR
+                    (
+                        l_item_number,
+                        '^[^-]+'
+                    )
+                )
+            );
+
+
+        -- -------------------------------------------------------------
+        -- Confirmed business Planner rules.
+        --
+        -- These are functional Planner values. The actual Oracle EBS
+        -- PLANNER_CODE is resolved below from MTL_PLANNERS.
+        --
+        -- RAW_MATERIAL_ITEM intentionally has no automatic rule yet.
+        -- -------------------------------------------------------------
+
+        l_business_planner :=
+            CASE
+                WHEN l_item_type_code IN
+                     (
+                         'ADHESIVE_COATING',
+                         'SLIT_CUSTOMER_SERVICE',
+                         'SLIT_ENGINEERING'
+                     )
+                THEN
+                    CASE
+                        WHEN l_item_prefix = 'SP' THEN '14'
+                        ELSE '1'
+                    END
+
+                WHEN l_item_type_code IN
+                     (
+                         'ADHESIVES',
+                         'LINER_COATING',
+                         'CONVERTING'
+                     )
+                THEN
+                    '1'
+
+                ELSE
+                    NULL
+            END;
+
+
+        IF l_business_planner IS NULL THEN
+
+            RETURN;
+
+        END IF;
+
+
+        -- -------------------------------------------------------------
+        -- PLANNER must be configured exactly once for TARGET.
+        -- The applicability itself remains configuration-driven.
+        -- -------------------------------------------------------------
+
+        SELECT
+            COUNT(*),
+            MIN(a.item_attribute_id)
+        INTO
+            l_planner_config_count,
+            l_planner_attribute_id
+        FROM ops.adre_inv_item_type_attr ta
+        JOIN ops.adre_inv_item_attribute a
+          ON a.item_attribute_id = ta.item_attribute_id
+        WHERE ta.item_type_id = l_item_type_id
+          AND NVL(ta.active_flag, 'N') = 'Y'
+          AND NVL(a.active_flag, 'N') = 'Y'
+          AND UPPER(TRIM(a.attribute_code)) = 'PLANNER'
+          AND UPPER(TRIM(ta.organization_scope)) = 'TARGET';
+
+
+        IF l_planner_config_count = 0 THEN
+
+            pcd_append_text
+            (
+                io_message,
+                'Automatic Planner rule exists for Item Type ' ||
+                l_item_type_code ||
+                ' but PLANNER is not configured with TARGET scope. ' ||
+                'Automatic Planner processing was skipped.'
+            );
+
+            RETURN;
+
+        ELSIF l_planner_config_count <> 1
+           OR l_planner_attribute_id IS NULL
+        THEN
+
+            RAISE_APPLICATION_ERROR
+            (
+                -20150,
+                'PLANNER configuration must resolve exactly once with TARGET scope. ' ||
+                'ITEM_TYPE=' ||
+                l_item_type_code ||
+                ', COUNT=' ||
+                TO_CHAR(l_planner_config_count)
+            );
+
+        END IF;
+
+
+        -- -------------------------------------------------------------
+        -- At least one TARGET Request Organization is required for an
+        -- automatic Planner rule.
+        -- -------------------------------------------------------------
+
+        SELECT COUNT(*)
+        INTO l_target_count
+        FROM ops.adre_inv_item_request_org ro
+        WHERE ro.item_request_id = p_item_request_id
+          AND UPPER(TRIM(ro.organization_role)) = 'TARGET';
+
+
+        IF l_target_count = 0 THEN
+
+            RAISE_APPLICATION_ERROR
+            (
+                -20151,
+                'Automatic Planner processing requires at least one TARGET Request Organization.'
+            );
+
+        END IF;
+
+
+        -- -------------------------------------------------------------
+        -- Resolve session user in PL/SQL before the SQL UPDATE.
+        -- F_GET_SESSION_USER is a private package-body function and must
+        -- not be invoked directly from SQL.
+        -- -------------------------------------------------------------
+
+        l_session_user :=
+            f_get_session_user;
+
+
+        -- -------------------------------------------------------------
+        -- Resolve the actual active EBS Planner independently for each
+        -- TARGET Organization and update the staged PLANNER row.
+        -- -------------------------------------------------------------
+
+        FOR r_target IN
+        (
+            SELECT
+                ro.request_org_id,
+                ro.ebs_organization_id
+            FROM ops.adre_inv_item_request_org ro
+            WHERE ro.item_request_id = p_item_request_id
+              AND UPPER(TRIM(ro.organization_role)) = 'TARGET'
+            ORDER BY ro.ebs_organization_id
+        )
+        LOOP
+
+            SELECT
+                COUNT(*),
+                MIN(mp.planner_code)
+            INTO
+                l_active_planner_count,
+                l_resolved_planner_code
+            FROM apps.mtl_planners mp
+            WHERE mp.organization_id =
+                  r_target.ebs_organization_id
+              AND
+                  (
+                      mp.disable_date IS NULL
+                      OR mp.disable_date > SYSDATE
+                  )
+              AND
+                  (
+                      UPPER(TRIM(mp.planner_code)) =
+                          UPPER(TRIM(l_business_planner))
+
+                      OR
+
+                      LTRIM
+                      (
+                          UPPER(TRIM(mp.planner_code)),
+                          '0'
+                      ) =
+                      LTRIM
+                      (
+                          UPPER(TRIM(l_business_planner)),
+                          '0'
+                      )
+                  );
+
+
+            IF l_active_planner_count <> 1
+               OR l_resolved_planner_code IS NULL
+            THEN
+
+                RAISE_APPLICATION_ERROR
+                (
+                    -20152,
+                    'Business Planner ' ||
+                    l_business_planner ||
+                    ' did not resolve to exactly one active EBS Planner. ' ||
+                    'ITEM_TYPE=' ||
+                    l_item_type_code ||
+                    ', ITEM_NUMBER=' ||
+                    l_item_number ||
+                    ', TARGET_ORGANIZATION_ID=' ||
+                    TO_CHAR(r_target.ebs_organization_id) ||
+                    ', ACTIVE_MATCH_COUNT=' ||
+                    TO_CHAR(l_active_planner_count)
+                );
+
+            END IF;
+
+
+            SELECT COUNT(*)
+            INTO l_staged_planner_count
+            FROM ops.adre_inv_item_attr_value av
+            WHERE av.request_org_id =
+                  r_target.request_org_id
+              AND av.item_attribute_id =
+                  l_planner_attribute_id;
+
+
+            IF l_staged_planner_count <> 1 THEN
+
+                RAISE_APPLICATION_ERROR
+                (
+                    -20153,
+                    'The configured TARGET PLANNER Attribute must be staged exactly once before ' ||
+                    'PCD_PROCESS_REQUEST. REQUEST_ORG_ID=' ||
+                    TO_CHAR(r_target.request_org_id) ||
+                    ', COUNT=' ||
+                    TO_CHAR(l_staged_planner_count)
+                );
+
+            END IF;
+
+
+            UPDATE ops.adre_inv_item_attr_value av
+            SET
+                av.attribute_char_value    = l_resolved_planner_code,
+                av.attribute_number_value  = NULL,
+                av.attribute_date_value    = NULL,
+                av.value_uom_code          = NULL,
+                av.value_status            = 'READY',
+                av.api_return_status       = NULL,
+                av.api_message_count       = NULL,
+                av.api_message_text        = NULL,
+                av.api_processed_date      = NULL,
+                av.last_updated_by         = l_session_user,
+                av.last_update_date        = SYSDATE,
+                av.last_update_login       = NULL
+            WHERE av.request_org_id =
+                  r_target.request_org_id
+              AND av.item_attribute_id =
+                  l_planner_attribute_id;
+
+
+            pcd_append_text
+            (
+                io_message,
+                'Planner automatically resolved: ITEM_TYPE=' ||
+                l_item_type_code ||
+                ', PREFIX=' ||
+                NVL(l_item_prefix, 'NONE') ||
+                ', BUSINESS_PLANNER=' ||
+                l_business_planner ||
+                ', EBS_PLANNER_CODE=' ||
+                l_resolved_planner_code ||
+                ', TARGET_ORGANIZATION_ID=' ||
+                TO_CHAR(r_target.ebs_organization_id)
+            );
+
+        END LOOP;
+
+
+    END pcd_apply_auto_planner;
+
+
     PROCEDURE pcd_validate_required_attributes
     (
         p_item_request_id IN NUMBER
@@ -1679,6 +2146,55 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             VARCHAR2(4000);
 
         -- =================================================================
+        -- JCALZADILLA - 04.09.2026 - START CHANGE V13
+        -- Caron real-data review corrections.
+        -- =================================================================
+
+        l_item_type_code
+            VARCHAR2(100);
+
+        l_division_value
+            VARCHAR2(240);
+
+        l_division_count
+            NUMBER;
+
+        l_user_item_type_code
+            VARCHAR2(30);
+
+        l_user_item_type_count
+            NUMBER;
+
+        -- =================================================================
+        -- JCALZADILLA - 07.09.2026 - START CHANGE V15
+        -- RAW_MATERIAL_ITEM User Item Type comes from the resolved TARGET
+        -- Template metadata (for example Purchasing vs Expense).
+        -- =================================================================
+        l_template_item_type_count
+            NUMBER;
+
+        l_template_item_type_code
+            VARCHAR2(30);
+        -- JCALZADILLA - 07.09.2026 - END CHANGE V15
+        -- =================================================================
+
+        l_construction
+            VARCHAR2(4000);
+
+        -- =================================================================
+        -- JCALZADILLA - 07.09.2026 - START CHANGE V14
+        -- Direct configuration-driven CONSTRUCTION value. When supplied,
+        -- this value is authoritative over the V13 Adhesives derivation.
+        -- =================================================================
+        l_staged_construction
+            VARCHAR2(4000);
+        -- JCALZADILLA - 07.09.2026 - END CHANGE V14
+        -- =================================================================
+
+        -- JCALZADILLA - 04.09.2026 - END CHANGE V13
+        -- =================================================================
+
+        -- =================================================================
         -- JCALZADILLA - 31.08.2026 - START CHANGE
         -- Purpose:
         -- Hold the confirmed RAW_MATERIAL_ITEM Attribute values that are
@@ -1696,6 +2212,26 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
         l_lead_time_days
             NUMBER;
+
+        -- =================================================================
+        -- JCALZADILLA - 04.09.2026 - START CHANGE V12
+        -- Caron ADHESIVES attributes.
+        -- =================================================================
+
+        l_pdr_number
+            VARCHAR2(4000);
+
+        l_percent_solids
+            NUMBER;
+
+        l_weight_per_gallon
+            NUMBER;
+
+        l_weight_uom_code
+            VARCHAR2(30);
+
+        -- JCALZADILLA - 04.09.2026 - END CHANGE V12
+        -- =================================================================
 
         -- =================================================================
         -- JCALZADILLA - 01.09.2026 - START CHANGE V9
@@ -2052,6 +2588,111 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
           AND ROWNUM = 1;
 
 
+        -- =================================================================
+        -- JCALZADILLA - 04.09.2026 - START CHANGE V13
+        -- Resolve the functional Item Type code and the Oracle EBS User
+        -- Item Type from the request DIVISION category.
+        --
+        -- Caron confirmed that the EBS User Item Type should reflect the
+        -- business Division (for example ARcare), not the application
+        -- Item Type used to drive templates and screen behavior.
+        --
+        -- No EBS ITEM_TYPE lookup code is hard-coded.
+        -- =================================================================
+
+        SELECT
+            UPPER(TRIM(it.item_type_code))
+        INTO
+            l_item_type_code
+        FROM ops.adre_inv_item_type it
+        WHERE it.item_type_id = l_request.item_type_id;
+
+
+        SELECT
+            COUNT(DISTINCT UPPER(TRIM(cat.category_value))),
+            MIN(cat.category_value)
+        INTO
+            l_division_count,
+            l_division_value
+        FROM ops.adre_inv_item_category cat
+        JOIN ops.adre_inv_item_request_org ro
+          ON ro.request_org_id = cat.request_org_id
+        JOIN apps.mtl_category_sets_tl cst
+          ON cst.category_set_id = cat.ebs_category_set_id
+         AND cst.language = 'US'
+        WHERE ro.item_request_id = p_item_request_id
+          AND UPPER(TRIM(cst.category_set_name)) = 'DIVISION';
+
+
+        IF l_division_count > 1 THEN
+
+            RAISE_APPLICATION_ERROR
+            (
+                -20156,
+                'More than one distinct DIVISION category value exists for the Item Request.'
+            );
+
+        END IF;
+
+
+        l_user_item_type_code := NULL;
+        l_user_item_type_count := 0;
+
+
+        IF l_division_count = 1
+           AND l_division_value IS NOT NULL
+        THEN
+
+            SELECT
+                COUNT(DISTINCT flv.lookup_code),
+                MIN(flv.lookup_code)
+            INTO
+                l_user_item_type_count,
+                l_user_item_type_code
+            FROM apps.fnd_lookup_values_vl flv
+            WHERE UPPER(TRIM(flv.lookup_type)) = 'ITEM_TYPE'
+              AND NVL(flv.enabled_flag, 'Y') = 'Y'
+              AND
+                  (
+                      flv.start_date_active IS NULL
+                      OR TRUNC(flv.start_date_active) <= TRUNC(SYSDATE)
+                  )
+              AND
+                  (
+                      flv.end_date_active IS NULL
+                      OR TRUNC(flv.end_date_active) >= TRUNC(SYSDATE)
+                  )
+              AND
+                  (
+                      UPPER(TRIM(flv.meaning)) =
+                          UPPER(TRIM(l_division_value))
+                      OR
+                      UPPER(TRIM(flv.description)) =
+                          UPPER(TRIM(l_division_value || ' Division'))
+                  );
+
+
+            IF l_user_item_type_count > 1 THEN
+
+                RAISE_APPLICATION_ERROR
+                (
+                    -20157,
+                    'DIVISION resolved to more than one active Oracle EBS User Item Type. ' ||
+                    'DIVISION=' || l_division_value
+                );
+
+            ELSIF l_user_item_type_count = 0 THEN
+
+                l_user_item_type_code := NULL;
+
+            END IF;
+
+        END IF;
+
+        -- JCALZADILLA - 04.09.2026 - END CHANGE V13
+        -- =================================================================
+
+
         -- =============================================================
         -- JCALZADILLA - 25.08.2026
         -- MASTER and TARGET template identifiers are intentionally
@@ -2065,6 +2706,20 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         -- EGO_ITEM_PUB.ASSIGN_ITEM_TO_ORG itself does not accept a
         -- target template parameter.
         -- =============================================================
+
+
+        -- =============================================================
+        -- JCALZADILLA - 04.09.2026 - V11
+        -- Resolve automatic Planner before required dynamic Attribute
+        -- validation. TEST/APEX stages the PLANNER row; the package owns
+        -- the business-rule and EBS-code resolution.
+        -- =============================================================
+
+        pcd_apply_auto_planner
+        (
+            p_item_request_id => p_item_request_id,
+            io_message        => x_message
+        );
 
 
         pcd_validate_required_attributes
@@ -2209,7 +2864,11 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                   'BATCH_SIZE',
                   'SHELF_LIFE_DAYS',
                   'PLANNER',
-                  'SHIPPABLE_ITEM_FLAG'
+                  'SHIPPABLE_ITEM_FLAG',
+                  'PDR_NUMBER',
+                  'PERCENT_SOLIDS',
+                  'WEIGHT_PER_GALLON',
+                  'CONSTRUCTION'
               )
           AND
           (
@@ -2246,6 +2905,15 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             l_master_template_name ||
             ' / ' ||
             l_master_template_id
+        );
+
+        pcd_append_text
+        (
+            x_message,
+            'Resolved EBS User Item Type from DIVISION=' ||
+            NVL(l_division_value, 'NOT AVAILABLE') ||
+            ': ' ||
+            NVL(l_user_item_type_code, 'NOT SENT')
         );
 
         pcd_append_text
@@ -2392,6 +3060,70 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         END LOOP;
 
         -- =================================================================
+        -- JCALZADILLA - 07.09.2026 - START CHANGE V15
+        -- RAW_MATERIAL_ITEM must use the EBS User Item Type defined by the
+        -- selected TARGET Template. This keeps Purchasing/Expense behavior
+        -- configuration-driven and prevents DIVISION=ARcare from forcing
+        -- ARCR over template values such as P or EX.
+        -- =================================================================
+        IF l_item_type_code = 'RAW_MATERIAL_ITEM' THEN
+
+            SELECT
+                COUNT
+                (
+                    DISTINCT UPPER(TRIM(ta.attribute_value))
+                ),
+                MIN
+                (
+                    UPPER(TRIM(ta.attribute_value))
+                )
+            INTO
+                l_template_item_type_count,
+                l_template_item_type_code
+            FROM ops.adre_inv_item_request_org ro
+            JOIN apps.mtl_item_templ_attributes ta
+              ON ta.template_id = ro.ebs_template_id
+            WHERE ro.item_request_id = p_item_request_id
+              AND ro.organization_role = 'TARGET'
+              AND ro.ebs_template_id IS NOT NULL
+              AND UPPER(TRIM(ta.attribute_name)) =
+                  'MTL_SYSTEM_ITEMS.ITEM_TYPE'
+              AND ta.enabled_flag = 'Y'
+              AND ta.attribute_value IS NOT NULL;
+
+            IF l_template_item_type_count = 0
+               OR l_template_item_type_code IS NULL
+            THEN
+                RAISE_APPLICATION_ERROR
+                (
+                    -20158,
+                    'RAW_MATERIAL_ITEM TARGET Template does not define an enabled EBS ITEM_TYPE. ' ||
+                    'ITEM_REQUEST_ID=' || p_item_request_id
+                );
+
+            ELSIF l_template_item_type_count > 1 THEN
+                RAISE_APPLICATION_ERROR
+                (
+                    -20159,
+                    'RAW_MATERIAL_ITEM TARGET Templates define conflicting EBS ITEM_TYPE values. ' ||
+                    'ITEM_REQUEST_ID=' || p_item_request_id
+                );
+            END IF;
+
+            l_user_item_type_code := l_template_item_type_code;
+
+            pcd_append_text
+            (
+                x_message,
+                'RAW_MATERIAL_ITEM EBS User Item Type resolved from TARGET Template metadata: ' ||
+                l_user_item_type_code
+            );
+
+        END IF;
+        -- JCALZADILLA - 07.09.2026 - END CHANGE V15
+        -- =================================================================
+
+        -- =================================================================
         -- JCALZADILLA - 27.08.2026 - END CHANGE
         -- =================================================================
 
@@ -2494,16 +3226,21 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                 p_organization_code          => l_master_org_code,
                 p_description                => l_request.item_description,
                 p_long_description           =>
-                    f_optional_char
+                    DBMS_LOB.SUBSTR
                     (
-                        DBMS_LOB.SUBSTR
-                        (
-                            l_request.long_description,
-                            4000,
-                            1
-                        )
+                        l_request.long_description,
+                        4000,
+                        1
                     ),
                 p_primary_uom_code           => l_request.primary_uom_code,
+                -- =========================================================
+                -- JCALZADILLA - 04.09.2026 - V13 FIX1
+                -- The CREATE call intentionally remains on the proven
+                -- convenience PROCESS_ITEM overload. EBS User Item Type is
+                -- applied immediately afterward by APPLY_MASTER_ATTRIBUTES
+                -- using the full PROCESS_ITEM overload (which supports
+                -- P_ITEM_TYPE and X_MSG_DATA).
+                -- =========================================================
                 p_inventory_item_status_code =>
                     f_optional_char
                     (
@@ -2872,6 +3609,29 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                 p_mrp_planning_code   => l_requested_mrp_planning_code,
 
                 -- =========================================================
+                -- JCALZADILLA - 04.09.2026 - START CHANGE V13
+                -- Keep the EBS User Item Type and Long Description aligned
+                -- with the request on existing MASTER Items.
+                -- Passing NULL Long Description explicitly clears the
+                -- previously duplicated Description, per Caron's review.
+                -- =========================================================
+                p_item_type           =>
+                    NVL
+                    (
+                        l_user_item_type_code,
+                        apps.fnd_api.g_miss_char
+                    ),
+
+                p_long_description    =>
+                    DBMS_LOB.SUBSTR
+                    (
+                        l_request.long_description,
+                        4000,
+                        1
+                    ),
+                -- JCALZADILLA - 04.09.2026 - END CHANGE V13
+
+                -- =========================================================
                 -- JCALZADILLA - 31.08.2026 - START CHANGE
                 -- RAW_MATERIAL_ITEM supported MASTER Attributes.
                 -- =========================================================
@@ -3169,6 +3929,19 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             -- =================================================================
             l_price_per_uom                    := NULL;
             l_lead_time_days                   := NULL;
+
+            -- =================================================================
+            -- JCALZADILLA - 04.09.2026 - START CHANGE V12
+            -- Reset Caron ADHESIVES TARGET Attribute values.
+            -- =================================================================
+            l_pdr_number                       := NULL;
+            l_percent_solids                   := NULL;
+            l_weight_per_gallon                := NULL;
+            l_weight_uom_code                  := NULL;
+            l_staged_construction               := NULL;
+            -- JCALZADILLA - 04.09.2026 - END CHANGE V12
+            -- =================================================================
+
             -- JCALZADILLA - 31.08.2026 - END CHANGE
 
             -- =================================================================
@@ -3400,7 +4173,11 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                   (
                       'SHELF_LIFE_DAYS',
                       'PLANNER',
-                      'SHIPPABLE_ITEM_FLAG'
+                      'SHIPPABLE_ITEM_FLAG',
+                      'PDR_NUMBER',
+                      'PERCENT_SOLIDS',
+                      'WEIGHT_PER_GALLON',
+                      'CONSTRUCTION'
                   );
 
 
@@ -3504,6 +4281,27 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
                     p_mrp_planning_code   =>
                         l_master_mrp_planning_code,
+
+                    -- =========================================================
+                    -- JCALZADILLA - 04.09.2026 - START CHANGE V13
+                    -- Apply the resolved EBS User Item Type and keep Long
+                    -- Description aligned after the TARGET Template.
+                    -- =========================================================
+                    p_item_type           =>
+                        NVL
+                        (
+                            l_user_item_type_code,
+                            apps.fnd_api.g_miss_char
+                        ),
+
+                    p_long_description    =>
+                        DBMS_LOB.SUBSTR
+                        (
+                            l_request.long_description,
+                            4000,
+                            1
+                        ),
+                    -- JCALZADILLA - 04.09.2026 - END CHANGE V13
 
                     -- =========================================================
                     -- JCALZADILLA - 01.09.2026 - START CHANGE V10
@@ -3828,6 +4626,13 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             -- SHELF_LIFE_DAYS     -> SHELF_LIFE_DAYS
             -- PLANNER             -> PLANNER_CODE
             -- SHIPPABLE_ITEM_FLAG -> SHIPPABLE_ITEM_FLAG
+            -- PDR_NUMBER          -> ATTRIBUTE1 / PDR NUMBER
+            -- PERCENT_SOLIDS      -> ATTRIBUTE16 / PERCENT SOLIDS
+            -- WEIGHT_PER_GALLON   -> ATTRIBUTE3 / CONSTRUCTION together
+            --                        with PERCENT_SOLIDS (Caron-confirmed)
+            -- INITIATOR            -> ATTRIBUTE7 / INITIATOR
+            -- Physical UNIT_WEIGHT / WEIGHT_UOM_CODE are explicitly cleared
+            -- when WEIGHT_PER_GALLON is supplied.
             -- =================================================================
 
             SELECT
@@ -3914,8 +4719,52 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                         WHEN a.attribute_code = 'SHIPPABLE_ITEM_FLAG'
                         THEN av.attribute_char_value
                     END
-                )
+                ),
                 -- JCALZADILLA - 01.09.2026 - END CHANGE V10
+                -- =========================================================
+                -- JCALZADILLA - 04.09.2026 - START CHANGE V12
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'PDR_NUMBER'
+                        THEN av.attribute_char_value
+                    END
+                ),
+                -- =========================================================
+                -- JCALZADILLA - 07.09.2026 - START CHANGE V14
+                -- Direct Item DFF Construction value.
+                -- =========================================================
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'CONSTRUCTION'
+                        THEN av.attribute_char_value
+                    END
+                ),
+                -- JCALZADILLA - 07.09.2026 - END CHANGE V14
+                -- =========================================================
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'PERCENT_SOLIDS'
+                        THEN av.attribute_number_value
+                    END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'WEIGHT_PER_GALLON'
+                        THEN av.attribute_number_value
+                    END
+                ),
+                MAX
+                (
+                    CASE
+                        WHEN a.attribute_code = 'WEIGHT_PER_GALLON'
+                        THEN av.value_uom_code
+                    END
+                )
+                -- JCALZADILLA - 04.09.2026 - END CHANGE V12
             INTO
                 l_outside_processing,
                 l_width,
@@ -3927,7 +4776,12 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                 l_batch_size,
                 l_shelf_life_days,
                 l_planner,
-                l_shippable_item_flag
+                l_shippable_item_flag,
+                l_pdr_number,
+                l_staged_construction,
+                l_percent_solids,
+                l_weight_per_gallon,
+                l_weight_uom_code
             FROM ops.adre_inv_item_attr_value av
             JOIN ops.adre_inv_item_attribute a
               ON a.item_attribute_id = av.item_attribute_id
@@ -3942,7 +4796,10 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                       'BATCH_SIZE',
                       'SHELF_LIFE_DAYS',
                       'PLANNER',
-                      'SHIPPABLE_ITEM_FLAG'
+                      'SHIPPABLE_ITEM_FLAG',
+                      'PDR_NUMBER',
+                      'PERCENT_SOLIDS',
+                      'WEIGHT_PER_GALLON'
                   );
 
 
@@ -3955,7 +4812,12 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                 + CASE WHEN l_batch_size          IS NOT NULL THEN 1 ELSE 0 END
                 + CASE WHEN l_shelf_life_days     IS NOT NULL THEN 1 ELSE 0 END
                 + CASE WHEN l_planner             IS NOT NULL THEN 1 ELSE 0 END
-                + CASE WHEN l_shippable_item_flag IS NOT NULL THEN 1 ELSE 0 END;
+                + CASE WHEN l_shippable_item_flag IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_pdr_number          IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_staged_construction IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_percent_solids      IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_weight_per_gallon   IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN l_request.initiator   IS NOT NULL THEN 1 ELSE 0 END;
 
 
             IF l_target_attr_value_count > 0 THEN
@@ -4013,6 +4875,79 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     END IF;
                 END IF;
                 -- JCALZADILLA - 01.09.2026 - END CHANGE V10
+
+                -- =========================================================
+                -- JCALZADILLA - 04.09.2026 - START CHANGE V13
+                -- Caron confirmed that WEIGHT_PER_GALLON is not a Physical
+                -- Attribute Unit Weight. It is part of the Item DFF
+                -- CONSTRUCTION text together with Percent Solids.
+                --
+                -- Confirmed DFF mappings from this EBS instance:
+                --   CONSTRUCTION = ATTRIBUTE3
+                --   INITIATOR    = ATTRIBUTE7
+                -- =========================================================
+
+                l_pdr_number := NULLIF(TRIM(l_pdr_number), '');
+                l_weight_uom_code := NULLIF(UPPER(TRIM(l_weight_uom_code)), '');
+                l_staged_construction := NULLIF(TRIM(l_staged_construction), '');
+
+                IF l_weight_per_gallon IS NOT NULL
+                   AND l_weight_per_gallon <= 0
+                THEN
+                    RAISE_APPLICATION_ERROR
+                    (
+                        -20154,
+                        'WEIGHT_PER_GALLON must be greater than zero. VALUE=' ||
+                        TO_CHAR(l_weight_per_gallon)
+                    );
+                END IF;
+
+                -- =========================================================
+                -- JCALZADILLA - 07.09.2026 - START CHANGE V14
+                -- A directly staged CONSTRUCTION value is authoritative.
+                -- If absent, preserve the V13 Adhesives derivation.
+                -- =========================================================
+                l_construction := l_staged_construction;
+
+                IF l_construction IS NULL THEN
+
+                    IF l_percent_solids IS NOT NULL THEN
+
+                        l_construction :=
+                            TO_CHAR
+                            (
+                                l_percent_solids,
+                                'TM9',
+                                'NLS_NUMERIC_CHARACTERS=''.,'''
+                            ) ||
+                            ' % SOLIDS';
+
+                    END IF;
+
+
+                    IF l_weight_per_gallon IS NOT NULL THEN
+
+                        l_construction :=
+                            CASE
+                                WHEN l_construction IS NULL THEN NULL
+                                ELSE l_construction || '; '
+                            END ||
+                            TO_CHAR
+                            (
+                                l_weight_per_gallon,
+                                'TM9',
+                                'NLS_NUMERIC_CHARACTERS=''.,'''
+                            ) ||
+                            ' LBS/GAL';
+
+                    END IF;
+
+                END IF;
+                -- JCALZADILLA - 07.09.2026 - END CHANGE V14
+                -- =========================================================
+
+                -- JCALZADILLA - 04.09.2026 - END CHANGE V13
+                -- =========================================================
 
 
                 IF l_width IS NOT NULL THEN
@@ -4096,6 +5031,78 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                             apps.fnd_api.g_miss_num
                         ),
 
+                    -- =========================================================
+                    -- JCALZADILLA - 04.09.2026 - START CHANGE V12
+                    -- Caron ADHESIVES attributes.
+                    -- =========================================================
+
+                    p_attribute1              =>
+                        NVL
+                        (
+                            l_pdr_number,
+                            apps.fnd_api.g_miss_char
+                        ),
+
+                    p_attribute16             =>
+                        CASE
+                            WHEN l_percent_solids IS NULL
+                                THEN apps.fnd_api.g_miss_char
+                            ELSE
+                                TO_CHAR
+                                (
+                                    l_percent_solids,
+                                    'TM9',
+                                    'NLS_NUMERIC_CHARACTERS=''.,'''
+                                )
+                        END,
+
+                    -- =========================================================
+                    -- JCALZADILLA - 04.09.2026 - START CHANGE V13
+                    -- CONSTRUCTION and INITIATOR confirmed by Caron.
+                    -- ATTRIBUTE3 = CONSTRUCTION
+                    -- ATTRIBUTE7 = INITIATOR
+                    --
+                    -- The old V12 provisional Physical Weight mapping is
+                    -- explicitly cleared when WEIGHT_PER_GALLON is supplied.
+                    -- NULL means clear; G_MISS means preserve.
+                    -- =========================================================
+                    p_attribute3              =>
+                        NVL
+                        (
+                            l_construction,
+                            apps.fnd_api.g_miss_char
+                        ),
+
+                    p_attribute7              =>
+                        NVL
+                        (
+                            l_request.initiator,
+                            apps.fnd_api.g_miss_char
+                        ),
+
+                    p_weight_uom_code         =>
+                        CASE
+                            WHEN l_weight_per_gallon IS NOT NULL
+                                THEN NULL
+                            ELSE apps.fnd_api.g_miss_char
+                        END,
+
+                    p_unit_weight             =>
+                        CASE
+                            WHEN l_weight_per_gallon IS NOT NULL
+                                THEN NULL
+                            ELSE apps.fnd_api.g_miss_num
+                        END,
+
+                    p_item_type               =>
+                        NVL
+                        (
+                            l_user_item_type_code,
+                            apps.fnd_api.g_miss_char
+                        ),
+
+                    -- JCALZADILLA - 04.09.2026 - END CHANGE V13
+
                     p_attribute15             =>
                         CASE
                             WHEN l_lead_time_days IS NULL
@@ -4155,11 +5162,22 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     -- flexfield and the standard Oracle EBS Item Attribute.
                     -- =========================================================
                     p_full_lead_time          =>
-                        NVL
-                        (
-                            l_lead_time_days,
-                            apps.fnd_api.g_miss_num
-                        ),
+                        CASE
+                            WHEN l_item_type_code = 'RAW_MATERIAL_ITEM'
+                            THEN
+                                NVL
+                                (
+                                    l_lead_time_days,
+                                    apps.fnd_api.g_miss_num
+                                )
+
+                            WHEN l_lead_time_days IS NOT NULL
+                            THEN
+                                NULL
+
+                            ELSE
+                                apps.fnd_api.g_miss_num
+                        END,
                     -- JCALZADILLA - 31.08.2026 - END CHANGE V7
                     -- JCALZADILLA - 31.08.2026 - END CHANGE
 
@@ -4313,7 +5331,11 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                                     'BATCH_SIZE',
                                     'SHELF_LIFE_DAYS',
                                     'PLANNER',
-                                    'SHIPPABLE_ITEM_FLAG'
+                                    'SHIPPABLE_ITEM_FLAG',
+                                    'PDR_NUMBER',
+                                    'PERCENT_SOLIDS',
+                                    'WEIGHT_PER_GALLON',
+                                    'CONSTRUCTION'
                                 )
                       );
 
@@ -4371,8 +5393,11 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     ', LEAD_TIME_DAYS=' ||
                     CASE
                         WHEN l_lead_time_days IS NULL THEN 'NOT SENT'
+                        WHEN l_item_type_code = 'RAW_MATERIAL_ITEM'
+                            THEN TO_CHAR(l_lead_time_days) ||
+                                 ' (ATTRIBUTE15 + FULL_LEAD_TIME)'
                         ELSE TO_CHAR(l_lead_time_days) ||
-                             ' (ATTRIBUTE15 + FULL_LEAD_TIME)'
+                             ' (ATTRIBUTE15 ONLY; FULL_LEAD_TIME CLEARED)'
                     END ||
                     ', BATCH_SIZE=' ||
                     CASE
@@ -4388,7 +5413,31 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     ', PLANNER=' ||
                     NVL(l_planner, 'NOT SENT') ||
                     ', SHIPPABLE_ITEM_FLAG=' ||
-                    NVL(l_shippable_item_flag, 'NOT SENT')
+                    NVL(l_shippable_item_flag, 'NOT SENT') ||
+                    ', PDR_NUMBER=' ||
+                    NVL(l_pdr_number, 'NOT SENT') ||
+                    ', PERCENT_SOLIDS=' ||
+                    CASE
+                        WHEN l_percent_solids IS NULL THEN 'NOT SENT'
+                        ELSE TO_CHAR(l_percent_solids)
+                    END ||
+                    ', CONSTRUCTION=' ||
+                    NVL(l_construction, 'NOT SENT') ||
+                    CASE
+                        WHEN l_staged_construction IS NOT NULL
+                            THEN ' (DIRECT STAGED VALUE)'
+                        WHEN l_construction IS NOT NULL
+                            THEN ' (DERIVED)'
+                        ELSE NULL
+                    END ||
+                    ', INITIATOR=' ||
+                    NVL(l_request.initiator, 'NOT SENT') ||
+                    ', WEIGHT_PER_GALLON=' ||
+                    CASE
+                        WHEN l_weight_per_gallon IS NULL THEN 'NOT SENT'
+                        ELSE TO_CHAR(l_weight_per_gallon) ||
+                             ' (CONSTRUCTION DFF; PHYSICAL WEIGHT CLEARED)'
+                    END
                 );
 
             END IF;
