@@ -1,0 +1,26 @@
+Hi Caron,
+
+Before we finalize the Organizations section of the Oracle APEX Item Creation application, we would like to confirm the expected organization rules.
+
+Our current working assumptions are:
+
+1. MAS is the MASTER Organization and is always required and assigned automatically.
+2. GRI is the current default TARGET Organization and is always required and assigned automatically.
+3. A request may include additional TARGET Organizations selected by the user.
+4. One Item Request may contain multiple TARGET Organizations.
+5. The TARGET Template must be resolved separately for each selected organization through the existing configuration and backend rules. Users will not select technical Template IDs manually.
+
+Could you please confirm the following?
+
+* Must every item always be created in both MAS and GRI?
+* Can an item ever be created only in MAS?
+* Can users assign the same item to additional TARGET Organizations?
+* If additional TARGET Organizations are allowed, which EBS Organization Codes should be available?
+* Are the permitted TARGET Organizations the same for every Item Type, or do they vary by Item Type?
+* Which TARGET Template applies to each Item Type and TARGET Organization combination?
+* Are any additional TARGET Organizations required or assigned automatically, or should they all remain optional?
+* Should Organization selection be completed before the request is submitted to Engineering for approval?
+
+Until these points are confirmed, we will continue using MAS and GRI as the required automatic organizations while keeping the design ready to support additional optional TARGET Organizations.
+
+Thank you.
