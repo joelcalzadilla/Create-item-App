@@ -3,8 +3,8 @@
 -- Package   : APPS.ADRE_CREATE_INV_ITEM
 -- Component : Package Specification and Body
 -- Author    : Joel Calzadilla
--- Date      : 09/29/2026
--- Version   : V33
+-- Date      : 10/07/2026
+-- Version   : V34
 -- Purpose   : Processes staged inventory item requests in Oracle EBS,
 --             resolves configured item types, templates and categories,
 --             assigns organizations, applies eligible attributes and
@@ -1490,40 +1490,42 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
     -- ---------------------------------------------------------------------
     -- Routine    : fnc_category_role_id
-    -- Purpose    : Find and validate the EBS category set configured for a category role.
+    -- Purpose    : Resolve the active EBS category set configured for the master
+    --              organization and validate its EBS control level.
     -- Parameters:
-    --   p_role_code IN VARCHAR2 - Configured category role or category set name.
-    -- Returns   : NUMBER - EBS category set identifier for the role.
+    --   p_role_code IN VARCHAR2 - Name of the category set used by template rules.
+    --   p_master_organization_id IN NUMBER - EBS master organization identifier.
+    -- Returns   : NUMBER - Configured EBS category set identifier.
     -- ---------------------------------------------------------------------
     FUNCTION fnc_category_role_id
     (
-        p_role_code IN VARCHAR2
+        p_role_code IN VARCHAR2,
+        p_master_organization_id IN NUMBER
     )
     RETURN NUMBER
     IS
         l_id    NUMBER;
         l_count NUMBER;
     BEGIN
-        SELECT
-            category_set_id
-        INTO
-            l_id
-        FROM
-            ops.adre_cat_sets
-        WHERE  UPPER(TRIM(category_set_name)) = p_role_code;
-        SELECT
-            COUNT(*)
-        INTO
-            l_count
-        FROM
-            apps.mtl_category_sets_b
-        WHERE  category_set_id = l_id
-          AND  control_level   IN (c_category_control_item, c_category_control_org);
+        SELECT casetvl.category_set_id
+          INTO l_id
+          FROM ops.adre_inv_item_org_cat_set orcaset,
+               apps.mtl_category_sets_vl casetvl
+         WHERE orcaset.ebs_organization_id            = p_master_organization_id
+           AND orcaset.active_flag                    = 'Y'
+           AND casetvl.category_set_id                = orcaset.ebs_category_set_id
+           AND UPPER(TRIM(casetvl.category_set_name)) = UPPER(TRIM(p_role_code));
+        SELECT COUNT(*)
+          INTO l_count
+          FROM apps.mtl_category_sets_b mtcaseb
+         WHERE mtcaseb.category_set_id = l_id
+           AND mtcaseb.control_level   = c_category_control_item;
         IF l_count <> 1 THEN
             raise_application_error
             (
                 -20205,
-                'Invalid EBS Category Set configured for ' || p_role_code
+                'Invalid master-level EBS Category Set configured for ' || p_role_code ||
+                ', ORGANIZATION_ID=' || p_master_organization_id
             );
         END IF;
         RETURN l_id;
@@ -1532,13 +1534,15 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             raise_application_error
             (
                 -20210,
-                'Missing OPS Category Set configuration: ' || p_role_code
+                'Missing active OPS master Category Set configuration: ' || p_role_code ||
+                ', ORGANIZATION_ID=' || p_master_organization_id
             );
         WHEN too_many_rows THEN
             raise_application_error
             (
                 -20215,
-                'Ambiguous OPS Category Set configuration: ' || p_role_code
+                'Ambiguous active OPS master Category Set configuration: ' || p_role_code ||
+                ', ORGANIZATION_ID=' || p_master_organization_id
             );
         WHEN OTHERS THEN
             raise_application_error
@@ -1706,8 +1710,12 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         l_master_organization_id NUMBER;
         l_priority_match_count   NUMBER;
     BEGIN
-        l_division_set_id := fnc_category_role_id('DIVISION');
-        l_business_set_id := fnc_category_role_id('BUSINESS UNIT');
+        SELECT master_organization_id
+          INTO l_master_organization_id
+          FROM apps.mtl_parameters
+         WHERE organization_id = p_target_organization_id;
+        l_division_set_id := fnc_category_role_id('DIVISION', l_master_organization_id);
+        l_business_set_id := fnc_category_role_id('BUSINESS UNIT', l_master_organization_id);
         pcd_validate_template_categories
         (
             p_item_request_id,
@@ -1715,13 +1723,6 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             l_division_set_id,
             l_business_set_id
         );
-        SELECT
-            master_organization_id
-        INTO
-            l_master_organization_id
-        FROM
-            apps.mtl_parameters
-        WHERE  organization_id = p_target_organization_id;
         SELECT
             ranked_template_rules.item_template_rule_id,
             ranked_template_rules.ebs_template_id,
@@ -4290,7 +4291,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         FROM
             ops.adre_inv_item_type adinitty
         WHERE  adinitty.item_type_id = l_request.item_type_id;
-        l_division_set_id := fnc_category_role_id('DIVISION');
+        l_division_set_id := fnc_category_role_id('DIVISION', l_master_org_id);
         SELECT
             COUNT(DISTINCT UPPER(TRIM(adinitca.category_value))),
             MIN(adinitca.category_value)
@@ -7343,7 +7344,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     RETURN VARCHAR2
     IS
     BEGIN
-        RETURN 'V33';
+        RETURN 'V34';
     EXCEPTION
         WHEN OTHERS THEN
             pcd_write_log
