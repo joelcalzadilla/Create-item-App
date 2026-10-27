@@ -4,7 +4,7 @@
 -- Component : Package Specification and Body
 -- Author    : Joel Calzadilla
 -- Date      : 10/07/2026
--- Version   : V34
+-- Version   : V35
 -- Purpose   : Processes staged inventory item requests in Oracle EBS,
 --             resolves configured item types, templates and categories,
 --             assigns organizations, applies eligible attributes and
@@ -25,6 +25,34 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
         x_message OUT CLOB
     );
     FUNCTION fnc_release_version RETURN VARCHAR2;
+
+    ---code that is called from Processes inside de APEX app
+    PROCEDURE p_save_draft_request
+    (
+        p_item_request_id   IN OUT  ops.adre_inv_item_request.item_request_id%TYPE,
+        p_request_number    IN      ops.adre_inv_item_request.request_number%TYPE,
+        p_request_status    IN      ops.adre_inv_item_request.request_status%TYPE,
+        p_item_type_id      IN      ops.adre_inv_item_request.item_type_id%TYPE,
+        p_base_part_number  IN      ops.adre_inv_item_request.base_part_number%TYPE,
+        p_item_number       IN      ops.adre_inv_item_request.item_number%TYPE,
+        p_part_status       IN      ops.adre_inv_item_request.part_status%TYPE,
+        p_item_description  IN      ops.adre_inv_item_request.item_description%TYPE,
+        p_long_description  IN      ops.adre_inv_item_request.long_description%TYPE,
+        p_primary_uom_code  IN      ops.adre_inv_item_request.primary_uom_code%TYPE,
+        p_item_status_code  IN OUT  ops.adre_inv_item_request.item_status_code%TYPE,
+        p_initiator         IN      ops.adre_inv_item_request.initiator%TYPE,
+        p_requested_creation_date 
+                            IN      ops.adre_inv_item_request.requested_creation_date%TYPE,
+        p_forecast_flag     IN      ops.adre_inv_item_request.forecast_flag%TYPE,
+        p_app_user          IN      ops.adre_inv_item_request.created_by%TYPE
+    );
+    PROCEDURE p_add_target_organization 
+    (
+        p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
+        p_target_org_id   IN ops.adre_inv_item_request_org.ebs_organization_id%TYPE,
+        p_app_user        IN ops.adre_inv_item_request_org.created_by%TYPE
+    );
+
 END adre_create_inv_item;
 /
 
@@ -7344,7 +7372,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     RETURN VARCHAR2
     IS
     BEGIN
-        RETURN 'V34';
+        RETURN 'V35';
     EXCEPTION
         WHEN OTHERS THEN
             pcd_write_log
@@ -7374,6 +7402,244 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         RETURN fnc_release_version;
     END f_release_version;
 
+
+
+-- Adhesives Research | Joel Calzadilla | 2026-10-16
+  -- Save request and initialize missing organization defaults.
+    PROCEDURE p_save_draft_request (
+    p_item_request_id IN OUT ops.adre_inv_item_request.item_request_id%TYPE,
+    p_request_number IN ops.adre_inv_item_request.request_number%TYPE,
+    p_request_status IN ops.adre_inv_item_request.request_status%TYPE,
+    p_item_type_id IN ops.adre_inv_item_request.item_type_id%TYPE,
+    p_base_part_number IN ops.adre_inv_item_request.base_part_number%TYPE,
+    p_item_number IN ops.adre_inv_item_request.item_number%TYPE,
+    p_part_status IN ops.adre_inv_item_request.part_status%TYPE,
+    p_item_description IN ops.adre_inv_item_request.item_description%TYPE,
+    p_long_description IN ops.adre_inv_item_request.long_description%TYPE,
+    p_primary_uom_code IN ops.adre_inv_item_request.primary_uom_code%TYPE,
+    p_item_status_code IN OUT ops.adre_inv_item_request.item_status_code%TYPE,
+    p_initiator IN ops.adre_inv_item_request.initiator%TYPE,
+    p_requested_creation_date IN ops.adre_inv_item_request.requested_creation_date%TYPE,
+    p_forecast_flag IN ops.adre_inv_item_request.forecast_flag%TYPE,
+    p_app_user IN ops.adre_inv_item_request.created_by%TYPE
+  )
+  IS
+    l_new BOOLEAN := FALSE;
+  BEGIN
+    IF p_item_request_id IS NULL THEN
+      l_new := TRUE;
+      INSERT INTO ops.adre_inv_item_request
+        (request_number,request_status,item_type_id,base_part_number,
+         item_number,part_status,item_description,long_description,
+         primary_uom_code,item_status_code,initiator,
+         requested_creation_date,forecast_flag,created_by,creation_date,
+         last_updated_by,last_update_date,record_version_number)
+      VALUES
+        (p_request_number,NVL(p_request_status,'DRAFT'),
+         p_item_type_id,p_base_part_number,p_item_number,
+         p_part_status,p_item_description,p_long_description,
+         p_primary_uom_code,'ENGINEER',
+         NVL(p_initiator,p_app_user),p_requested_creation_date,
+         p_forecast_flag,p_app_user,SYSDATE,p_app_user,SYSDATE,1)
+      RETURNING item_request_id INTO p_item_request_id;
+      p_item_status_code := 'ENGINEER';
+    ELSE
+      UPDATE ops.adre_inv_item_request
+         SET request_number = p_request_number,
+             request_status = NVL(p_request_status,'DRAFT'),
+             item_type_id = p_item_type_id,
+             base_part_number = p_base_part_number,
+             item_number = p_item_number,
+             part_status = p_part_status,
+             item_description = p_item_description,
+             long_description = p_long_description,
+             primary_uom_code = p_primary_uom_code,
+             item_status_code = p_item_status_code,
+             initiator = NVL(p_initiator,p_app_user),
+             requested_creation_date = p_requested_creation_date,
+             forecast_flag = p_forecast_flag,
+             last_updated_by = p_app_user,
+             last_update_date = SYSDATE,
+             record_version_number = NVL(record_version_number,0)+1
+       WHERE item_request_id = p_item_request_id;
+    END IF;
+    IF l_new THEN
+      INSERT INTO ops.adre_inv_item_approval
+        (item_request_id,approval_type,approval_status,created_by,
+         creation_date,last_updated_by,last_update_date,record_version_number)
+      SELECT p_item_request_id,t.approval_type,'PENDING',
+             p_app_user,SYSDATE,p_app_user,SYSDATE,1
+        FROM (SELECT 'ENGINEERING' approval_type FROM dual
+              UNION ALL SELECT 'FINANCE' FROM dual) t;
+    END IF;
+    INSERT INTO ops.adre_inv_item_request_org
+      (item_request_id,organization_role,ebs_organization_id,
+       ebs_template_id,assignment_status,created_by,creation_date,
+       last_updated_by,last_update_date,record_version_number)
+    SELECT q.item_request_id,c.organization_role,c.ebs_organization_id,
+           c.ebs_template_id,'DRAFT',p_app_user,SYSDATE,p_app_user,SYSDATE,1
+      FROM ops.adre_inv_item_request q,ops.adre_inv_item_type_org c
+     WHERE q.item_request_id = p_item_request_id
+       AND q.request_status = 'DRAFT'
+       AND c.item_type_id = q.item_type_id
+       AND c.organization_role = 'MASTER'
+       AND c.active_flag = 'Y' AND c.auto_assign_flag = 'Y'
+       AND NOT EXISTS
+           (SELECT 1 FROM ops.adre_inv_item_request_org x
+             WHERE x.item_request_id = q.item_request_id
+               AND x.organization_role = 'MASTER');
+    INSERT INTO ops.adre_inv_item_attr_value
+      (request_org_id,item_attribute_id,attribute_value,
+       value_uom_code,value_status)
+    SELECT o.request_org_id,a.item_attribute_id,
+           TRIM(NVL(t.default_value,a.default_value)),
+           UPPER(TRIM(a.unit_of_measure)),'DRAFT'
+      FROM ops.adre_inv_item_request q,
+           ops.adre_inv_item_request_org o,
+           ops.adre_inv_item_type_attr t,
+           ops.adre_inv_item_attribute a
+     WHERE q.item_request_id = p_item_request_id
+       AND q.request_status = 'DRAFT'
+       AND o.item_request_id = q.item_request_id
+       AND t.item_type_id = q.item_type_id
+       AND t.active_flag = 'Y'
+       AND t.organization_scope IN (o.organization_role,'BOTH')
+       AND a.item_attribute_id = t.item_attribute_id
+       AND a.active_flag = 'Y'
+       AND TRIM(NVL(t.default_value,a.default_value)) IS NOT NULL
+       AND NOT EXISTS
+           (SELECT 1 FROM ops.adre_inv_item_attr_value x
+             WHERE x.request_org_id = o.request_org_id
+               AND x.item_attribute_id = a.item_attribute_id);
+  END p_save_draft_request;
+  
+--
+
+PROCEDURE p_add_target_organization (
+  p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
+  p_target_org_id   IN ops.adre_inv_item_request_org.ebs_organization_id%TYPE,
+  p_app_user        IN ops.adre_inv_item_request_org.created_by%TYPE
+) IS
+  l_count  NUMBER;
+  l_org_id NUMBER;
+  l_status ops.adre_inv_item_request.request_status%TYPE;
+BEGIN
+  -- Adhesives Research | Joel Calzadilla | 2026-10-23
+  -- Add TARGET organization and initialize configured defaults.
+
+  IF p_item_request_id IS NULL OR p_target_org_id IS NULL THEN
+    raise_application_error(
+      -20001,
+      'Select a draft request and a target organization.'
+    );
+  END IF;
+
+  SELECT request_status
+    INTO l_status
+    FROM ops.adre_inv_item_request
+   WHERE item_request_id = p_item_request_id
+   FOR UPDATE;
+
+  IF nvl(l_status, '?') <> 'DRAFT' THEN
+    raise_application_error(-20002, 'Request must be DRAFT.');
+  END IF;
+
+  SELECT count(*)
+    INTO l_count
+    FROM ops.adre_inv_item_request req,
+         ops.adre_inv_item_request_org master_org,
+         apps.mtl_parameters target_mp,
+         apps.hr_all_organization_units target_hou
+   WHERE req.item_request_id = p_item_request_id
+     AND req.request_status = 'DRAFT'
+     AND master_org.item_request_id = req.item_request_id
+     AND master_org.organization_role = 'MASTER'
+     AND target_mp.organization_id = p_target_org_id
+     AND target_mp.master_organization_id =
+         master_org.ebs_organization_id
+     AND target_mp.organization_id <> master_org.ebs_organization_id
+     AND target_hou.organization_id = target_mp.organization_id
+     AND (target_hou.date_from IS NULL
+          OR target_hou.date_from <= trunc(SYSDATE))
+     AND (target_hou.date_to IS NULL
+          OR target_hou.date_to >= trunc(SYSDATE));
+
+  IF l_count <> 1 THEN
+    raise_application_error(
+      -20002,
+      'The target organization is not valid for this draft request.'
+    );
+  END IF;
+
+  SELECT count(*)
+    INTO l_count
+    FROM ops.adre_inv_item_request_org
+   WHERE item_request_id = p_item_request_id
+     AND organization_role = 'TARGET'
+     AND ebs_organization_id = p_target_org_id;
+
+  IF l_count > 0 THEN
+    raise_application_error(
+      -20003,
+      'This target organization is already assigned.'
+    );
+  END IF;
+
+  INSERT INTO ops.adre_inv_item_request_org
+    (item_request_id,
+     organization_role,
+     ebs_organization_id,
+     ebs_template_id,
+     assignment_status,
+     created_by,
+     creation_date,
+     last_updated_by,
+     last_update_date,
+     record_version_number)
+  VALUES
+    (p_item_request_id,
+     'TARGET',
+     p_target_org_id,
+     NULL,
+     'DRAFT',
+     p_app_user,
+     SYSDATE,
+     p_app_user,
+     SYSDATE,
+     1)
+  RETURNING request_org_id INTO l_org_id;
+
+  INSERT INTO ops.adre_inv_item_attr_value
+    (request_org_id,
+     item_attribute_id,
+     attribute_value,
+     value_uom_code,
+     value_status)
+  SELECT l_org_id,
+         a.item_attribute_id,
+         trim(nvl(t.default_value, a.default_value)),
+         upper(trim(a.unit_of_measure)),
+         'DRAFT'
+    FROM ops.adre_inv_item_request q,
+         ops.adre_inv_item_type_attr t,
+         ops.adre_inv_item_attribute a
+   WHERE q.item_request_id = p_item_request_id
+     AND t.item_type_id = q.item_type_id
+     AND t.active_flag = 'Y'
+     AND t.organization_scope IN ('TARGET', 'BOTH')
+     AND a.item_attribute_id = t.item_attribute_id
+     AND a.active_flag = 'Y'
+     AND trim(nvl(t.default_value, a.default_value)) IS NOT NULL
+     AND NOT EXISTS
+         (SELECT 1
+            FROM ops.adre_inv_item_attr_value x
+           WHERE x.request_org_id = l_org_id
+             AND x.item_attribute_id = a.item_attribute_id);
+
+EXCEPTION
+  WHEN no_data_found THEN
+    raise_application_error(-20004, 'Request no longer exists.');
+END p_add_target_organization;
 
 END adre_create_inv_item;
 /
