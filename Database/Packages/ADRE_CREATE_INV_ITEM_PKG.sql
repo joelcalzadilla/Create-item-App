@@ -3,8 +3,8 @@
 -- Package   : APPS.ADRE_CREATE_INV_ITEM
 -- Component : Package Specification and Body
 -- Author    : Joel Calzadilla
--- Date      : 10/07/2026
--- Version   : V35
+-- Date      : 10/28/2026
+-- Version   : V36
 -- Purpose   : Processes staged inventory item requests in Oracle EBS,
 --             resolves configured item types, templates and categories,
 --             assigns organizations, applies eligible attributes and
@@ -636,106 +636,84 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
     -- ---------------------------------------------------------------------
     -- Routine    : fnc_convert_dimension
-    -- Purpose    : Convert a dimension between active EBS units in the same unit class.
+    -- Purpose    : Convert a dimensional value using configured exact factors.
     -- Parameters:
-    --   p_value IN NUMBER - Input value to convert or normalize.
-    --   p_from_uom IN VARCHAR2 - Source dimension unit of measure.
-    --   p_to_uom IN VARCHAR2 - Destination dimension unit of measure.
-    -- Returns   : NUMBER - Converted dimension in the destination unit.
+    --   p_value IN NUMBER - Positive staged dimension.
+    --   p_from_uom IN VARCHAR2 - Staged EBS UOM code or name.
+    --   p_to_uom IN VARCHAR2 - Configured destination EBS UOM.
+    --   p_decimal_places IN NUMBER - Configured destination precision.
+    -- Returns   : NUMBER - Rounded value in destination UOM.
     -- ---------------------------------------------------------------------
     FUNCTION fnc_convert_dimension
     (
-        p_value IN NUMBER,
-        p_from_uom IN VARCHAR2,
-        p_to_uom IN VARCHAR2
+        p_value          IN NUMBER,
+        p_from_uom       IN VARCHAR2,
+        p_to_uom         IN VARCHAR2,
+        p_decimal_places IN NUMBER DEFAULT 6
     )
     RETURN NUMBER
     IS
-        l_from_code  VARCHAR2(30);
-        l_to_code    VARCHAR2(30);
-        l_from_class VARCHAR2(30);
-        l_to_class   VARCHAR2(30);
-        l_from_rate  NUMBER;
-        l_to_rate    NUMBER;
+        l_from_code          VARCHAR2(30);
+        l_to_code            VARCHAR2(30);
+        l_from_class         VARCHAR2(30);
+        l_to_class           VARCHAR2(30);
+        l_conversion_count   NUMBER;
+        l_factor_numerator   NUMBER;
+        l_factor_denominator NUMBER;
     BEGIN
         IF p_value IS NULL THEN
             RETURN NULL;
         END IF;
         IF p_value <= 0 THEN
-            raise_application_error
-            (
-                -20070,
-                'Dimension must be greater than zero.'
-            );
+            raise_application_error(-20070, 'Dimension must be greater than zero.');
         END IF;
-        SELECT
-            uom_code,
-            uom_class
-        INTO
-            l_from_code,
-            l_from_class
-        FROM
-            apps.mtl_units_of_measure_vl
-        WHERE  (UPPER(TRIM(uom_code)) = UPPER(TRIM(p_from_uom)) OR UPPER(TRIM(unit_of_measure)) = UPPER(TRIM(p_from_uom)))
-          AND  (disable_date          IS NULL OR disable_date > SYSDATE);
-        SELECT
-            uom_code,
-            uom_class
-        INTO
-            l_to_code,
-            l_to_class
-        FROM
-            apps.mtl_units_of_measure_vl
-        WHERE  (UPPER(TRIM(uom_code)) = UPPER(TRIM(p_to_uom)) OR UPPER(TRIM(unit_of_measure)) = UPPER(TRIM(p_to_uom)))
-          AND  (disable_date          IS NULL OR disable_date > SYSDATE);
+        SELECT mtluom.uom_code, mtluom.uom_class
+          INTO l_from_code, l_from_class
+          FROM apps.mtl_units_of_measure_vl mtluom
+         WHERE (UPPER(TRIM(mtluom.uom_code))        = UPPER(TRIM(p_from_uom))
+             OR UPPER(TRIM(mtluom.unit_of_measure)) = UPPER(TRIM(p_from_uom)))
+           AND (mtluom.disable_date IS NULL OR mtluom.disable_date > SYSDATE);
+        SELECT mtluom.uom_code, mtluom.uom_class
+          INTO l_to_code, l_to_class
+          FROM apps.mtl_units_of_measure_vl mtluom
+         WHERE (UPPER(TRIM(mtluom.uom_code))        = UPPER(TRIM(p_to_uom))
+             OR UPPER(TRIM(mtluom.unit_of_measure)) = UPPER(TRIM(p_to_uom)))
+           AND (mtluom.disable_date IS NULL OR mtluom.disable_date > SYSDATE);
         IF l_from_class IS NULL OR l_to_class IS NULL OR l_from_class <> l_to_class THEN
-            raise_application_error
-            (
-                -20075,
-                'Dimension UOMs must belong to the same EBS class.'
-            );
+            raise_application_error(-20075, 'Dimension UOMs must belong to the same EBS class.');
         END IF;
         IF l_from_code = l_to_code THEN
             RETURN p_value;
         END IF;
-        SELECT
-            conversion_rate
-        INTO
-            l_from_rate
-        FROM
-            apps.mtl_uom_conversions
-        WHERE  inventory_item_id = 0
-          AND  uom_code          = l_from_code
-          AND  (disable_date     IS NULL OR disable_date > SYSDATE);
-        SELECT
-            conversion_rate
-        INTO
-            l_to_rate
-        FROM
-            apps.mtl_uom_conversions
-        WHERE  inventory_item_id = 0
-          AND  uom_code          = l_to_code
-          AND  (disable_date     IS NULL OR disable_date > SYSDATE);
-        IF l_from_rate IS NULL OR l_to_rate IS NULL OR l_from_rate <= 0 OR l_to_rate <= 0 THEN
+        SELECT COUNT(*), MIN(uomconv.factor_numerator), MIN(uomconv.factor_denominator)
+          INTO l_conversion_count, l_factor_numerator, l_factor_denominator
+          FROM ops.adre_inv_item_uom_conversion uomconv
+         WHERE uomconv.quantity_kind = 'LENGTH'
+           AND uomconv.from_uom_code = l_from_code
+           AND uomconv.to_uom_code   = l_to_code
+           AND uomconv.active_flag   = 'Y';
+        IF l_conversion_count <> 1 THEN
             raise_application_error
             (
-                -20080,
-                'EBS standard UOM conversion rate is missing or invalid.'
+                -20980,
+                'Expected one active configured dimension conversion: ' ||
+                l_from_code || ' -> ' || l_to_code || '; COUNT=' || l_conversion_count
             );
         END IF;
-        RETURN p_value * l_from_rate / l_to_rate;
+        RETURN ROUND(p_value * l_factor_numerator / l_factor_denominator,
+                     p_decimal_places);
     EXCEPTION
         WHEN no_data_found THEN
             raise_application_error
             (
                 -20085,
-                'Missing active EBS dimension UOM/conversion: ' || p_from_uom || ' -> ' || p_to_uom
+                'Missing active EBS dimension UOM: ' || p_from_uom || ' -> ' || p_to_uom
             );
         WHEN too_many_rows THEN
             raise_application_error
             (
                 -20090,
-                'Ambiguous EBS dimension UOM/conversion: ' || p_from_uom || ' -> ' || p_to_uom
+                'Ambiguous active EBS dimension UOM: ' || p_from_uom || ' -> ' || p_to_uom
             );
         WHEN OTHERS THEN
             raise_application_error
@@ -4130,6 +4108,11 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         l_target_length                     NUMBER;
         l_target_length_uom                 VARCHAR2(30);
         l_target_dimension_uom_code         VARCHAR2(30);
+        l_target_uom_rule_count             NUMBER;
+        l_target_uom_min_code               VARCHAR2(30);
+        l_target_uom_max_code               VARCHAR2(30);
+        l_target_decimal_places             NUMBER;
+        l_target_min_decimal_places         NUMBER;
         l_target_unit_width                 NUMBER;
         l_target_unit_length                NUMBER;
         l_target_attr_value_count           NUMBER := 0;
@@ -4625,7 +4608,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     (
                         av.val,
                         av.uom,
-                        'IN'
+                        av.uom
                     );
                 END LOOP;
             END LOOP;
@@ -5996,21 +5979,48 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                     END IF;
                 END IF;
                 IF l_width IS NOT NULL OR l_target_length IS NOT NULL THEN
-                    SELECT
-                        dimension_uom_code
-                    INTO
-                        l_target_dimension_uom_code
-                    FROM
-                        apps.mtl_system_items_b
-                    WHERE  inventory_item_id = NVL(l_target_item_id, l_master_item_id)
-                      AND  organization_id   = r_target.ebs_organization_id;
-                    l_target_dimension_uom_code := NVL(l_target_dimension_uom_code, 'IN');
+                    SELECT COUNT(*), MIN(uomrul.target_uom_code),
+                           MAX(uomrul.target_uom_code),
+                           MIN(uomrul.decimal_places), MAX(uomrul.decimal_places)
+                      INTO l_target_uom_rule_count, l_target_uom_min_code,
+                           l_target_uom_max_code, l_target_min_decimal_places,
+                           l_target_decimal_places
+                      FROM ops.adre_inv_item_org_uom_rule uomrul,
+                           ops.adre_inv_item_org_uom_system uomsys
+                     WHERE uomrul.ebs_organization_id = r_target.ebs_organization_id
+                       AND uomrul.item_type_id        = l_request.item_type_id
+                       AND uomrul.attribute_code     IN ('WIDTH', 'TARGET_LENGTH')
+                       AND uomrul.active_flag        = 'Y'
+                       AND uomsys.ebs_organization_id = uomrul.ebs_organization_id
+                       AND uomsys.active_flag         = 'Y';
+                    IF l_target_uom_rule_count <> 2 THEN
+                        raise_application_error
+                        (
+                            -20985,
+                            'Expected WIDTH and TARGET_LENGTH UOM rules. ITEM_TYPE_ID=' ||
+                            l_request.item_type_id || '; ORGANIZATION_ID=' ||
+                            r_target.ebs_organization_id || '; COUNT=' || l_target_uom_rule_count
+                        );
+                    END IF;
+                    IF l_target_uom_min_code <> l_target_uom_max_code
+                       OR l_target_min_decimal_places <> l_target_decimal_places
+                    THEN
+                        raise_application_error
+                        (
+                            -20990,
+                            'WIDTH and TARGET_LENGTH must use one EBS dimension UOM and precision. ' ||
+                            'ITEM_TYPE_ID=' || l_request.item_type_id ||
+                            '; ORGANIZATION_ID=' || r_target.ebs_organization_id
+                        );
+                    END IF;
+                    l_target_dimension_uom_code := l_target_uom_min_code;
                     IF l_width IS NOT NULL THEN
                         l_target_unit_width := fnc_convert_dimension
                         (
                             l_width,
                             l_width_uom,
-                            l_target_dimension_uom_code
+                            l_target_dimension_uom_code,
+                            l_target_decimal_places
                         );
                     END IF;
                     IF l_target_length IS NOT NULL THEN
@@ -6018,7 +6028,8 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
                         (
                             l_target_length,
                             l_target_length_uom,
-                            l_target_dimension_uom_code
+                            l_target_dimension_uom_code,
+                            l_target_decimal_places
                         );
                     END IF;
                 END IF;
@@ -7372,7 +7383,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     RETURN VARCHAR2
     IS
     BEGIN
-        RETURN 'V35';
+        RETURN 'V36';
     EXCEPTION
         WHEN OTHERS THEN
             pcd_write_log
