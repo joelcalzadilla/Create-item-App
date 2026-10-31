@@ -1,18 +1,24 @@
 -- =====================================================================
 -- Adhesives Research
--- Package   : APPS.ADRE_CREATE_INV_ITEM
--- Component : Package Specification and Body
--- Author    : Joel Calzadilla
--- Date      : 10/28/2026
--- Version   : V36
--- Purpose   : Processes staged inventory item requests in Oracle EBS,
---             resolves configured item types, templates and categories,
---             assigns organizations, applies eligible attributes and
---             records the verified result in OPS.
--- EntryPoint : pcd_process_request
+-- Package     : APPS.ADRE_CREATE_INV_ITEM
+-- Component   : Package Specification
+-- Author      : Joel Calzadilla
+-- Date        : 30-OCT-2026
+-- Release     : V37
+-- Purpose     : Create and configure Inventory Items from OPS requests.
+-- Design      : Resolve organizations, templates, attributes and categories
+--               from OPS configuration and Oracle EBS metadata.
+-- Transaction : EBS processing controls its commit; APEX draft edits use the
+--               APEX request transaction. No SAVEPOINT is used.
 -- =====================================================================
 
 CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
+    -- Procedure: pcd_process_request
+    -- Purpose: Create and configure one staged Inventory Item in EBS.
+    -- Inputs: p_item_request_id NUMBER; p_validate_only_flag VARCHAR2;
+    --         p_user_id NUMBER; p_resp_id NUMBER; p_resp_appl_id NUMBER;
+    --         p_commit_flag VARCHAR2.
+    -- Outputs: x_return_status VARCHAR2; x_message CLOB.
     PROCEDURE pcd_process_request
     (
         p_item_request_id IN NUMBER,
@@ -24,9 +30,22 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
         x_return_status OUT VARCHAR2,
         x_message OUT CLOB
     );
+    -- Function: fnc_release_version
+    -- Purpose: Return the installed package release identifier.
+    -- Inputs: None. Return: VARCHAR2.
     FUNCTION fnc_release_version RETURN VARCHAR2;
 
-    ---code that is called from Processes inside de APEX app
+    -- Public routines used by Oracle APEX request processes.
+    -- Procedure: p_save_draft_request
+    -- Purpose: Save a draft and initialize configured Master data.
+    -- Inputs: p_request_number VARCHAR2; p_request_status VARCHAR2;
+    --         p_item_type_id NUMBER; p_base_part_number VARCHAR2;
+    --         p_item_number VARCHAR2; p_part_status VARCHAR2;
+    --         p_item_description VARCHAR2; p_long_description CLOB;
+    --         p_primary_uom_code VARCHAR2; p_initiator VARCHAR2;
+    --         p_requested_creation_date DATE; p_forecast_flag VARCHAR2;
+    --         p_app_user VARCHAR2.
+    -- Input/Output: p_item_request_id NUMBER; p_item_status_code VARCHAR2.
     PROCEDURE p_save_draft_request
     (
         p_item_request_id   IN OUT  ops.adre_inv_item_request.item_request_id%TYPE,
@@ -46,6 +65,10 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
         p_forecast_flag     IN      ops.adre_inv_item_request.forecast_flag%TYPE,
         p_app_user          IN      ops.adre_inv_item_request.created_by%TYPE
     );
+    -- Procedure: p_add_target_organization
+    -- Purpose: Assign a valid Target to a draft and stage defaults.
+    -- Inputs: p_item_request_id NUMBER; p_target_org_id NUMBER;
+    --         p_app_user VARCHAR2.
     PROCEDURE p_add_target_organization 
     (
         p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
@@ -53,8 +76,409 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
         p_app_user        IN ops.adre_inv_item_request_org.created_by%TYPE
     );
 
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_submit_request
+    -- Purpose: Prepare a staged request and submit it once to Oracle EBS.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Request to submit.
+    --   p_app_user VARCHAR2 - APEX user recorded on the request.
+    -- Output Parameters:
+    --   x_return_status VARCHAR2 - S, E, or U from EBS processing.
+    --   x_message CLOB - Processing details.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_submit_request
+    (
+        p_item_request_id IN NUMBER,
+        p_app_user IN VARCHAR2,
+        x_return_status OUT VARCHAR2,
+        x_message OUT CLOB
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Function: fnc_apex_request_can_delete
+    -- Purpose: Check that a DRAFT or ERROR request has no EBS item.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Request selected in APEX.
+    -- Return:
+    --   VARCHAR2 - Y when deletion is allowed; otherwise N.
+    -- ---------------------------------------------------------------------
+    FUNCTION fnc_apex_request_can_delete
+    (
+        p_item_request_id IN NUMBER
+    )
+    RETURN VARCHAR2;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_delete_request
+    -- Purpose: Remove one eligible OPS request and its dependent rows.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Request selected in APEX.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_delete_request
+    (
+        p_item_request_id IN NUMBER
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_load_request
+    -- Purpose: Load General page fields or initialize a new draft.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Existing request, or NULL for new entry.
+    --   p_app_user VARCHAR2 - Current APEX user for a new draft.
+    -- Input/Output Parameters:
+    --   x_* - General request fields; preserved when no row is found.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_load_request
+    (
+        p_item_request_id IN NUMBER,
+        p_app_user IN VARCHAR2,
+        x_request_number IN OUT ops.adre_inv_item_request.request_number%TYPE,
+        x_request_status IN OUT ops.adre_inv_item_request.request_status%TYPE,
+        x_item_type_id IN OUT ops.adre_inv_item_request.item_type_id%TYPE,
+        x_base_part_number IN OUT ops.adre_inv_item_request.base_part_number%TYPE,
+        x_item_number IN OUT ops.adre_inv_item_request.item_number%TYPE,
+        x_part_status IN OUT ops.adre_inv_item_request.part_status%TYPE,
+        x_item_description IN OUT ops.adre_inv_item_request.item_description%TYPE,
+        x_long_description IN OUT ops.adre_inv_item_request.long_description%TYPE,
+        x_primary_uom_code IN OUT ops.adre_inv_item_request.primary_uom_code%TYPE,
+        x_item_status_code IN OUT ops.adre_inv_item_request.item_status_code%TYPE,
+        x_initiator IN OUT ops.adre_inv_item_request.initiator%TYPE,
+        x_requested_creation_date IN OUT ops.adre_inv_item_request.requested_creation_date%TYPE,
+        x_forecast_flag IN OUT ops.adre_inv_item_request.forecast_flag%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_validate_target_selection
+    -- Purpose: Retain only a TARGET assignment belonging to this request.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Current request.
+    -- Input/Output Parameters:
+    --   io_request_org_id NUMBER - TARGET assignment, cleared if invalid.
+    -- Output Parameters:
+    --   x_target_code VARCHAR2 - Selected EBS organization code.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_validate_target_selection
+    (
+        p_item_request_id IN NUMBER,
+        io_request_org_id IN OUT NUMBER,
+        x_target_code OUT VARCHAR2
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_master_category
+    -- Purpose:
+    --   Validates and saves one configured Master category value entered
+    --   through the request's Interactive Grid.
+    -- Input Parameters:
+    --   p_item_request_id       NUMBER - Current request identifier.
+    --   p_request_org_id        NUMBER - Master request organization.
+    --   p_ebs_category_set_id   NUMBER - EBS category set identifier.
+    --   p_apex_row_status       VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_category_value        VARCHAR2 - Entered/trimmed category value.
+    --   p_item_category_id      NUMBER - Existing/new category row key.
+    --   p_ebs_category_id       NUMBER - Resolved EBS category key.
+    --   p_record_version_number NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_master_category
+    (
+        p_item_request_id       IN NUMBER,
+        p_request_org_id        IN NUMBER,
+        p_ebs_category_set_id   IN NUMBER,
+        p_apex_row_status       IN VARCHAR2,
+        p_category_value        IN OUT ops.adre_inv_item_category.category_value%TYPE,
+        p_item_category_id      IN OUT ops.adre_inv_item_category.item_category_id%TYPE,
+        p_ebs_category_id       IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        p_record_version_number IN OUT ops.adre_inv_item_category.record_version_number%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_master_attribute
+    -- Purpose:
+    --   Validates and saves one configured Master attribute value entered
+    --   through the request's Interactive Grid.
+    -- Input Parameters:
+    --   p_item_request_id       NUMBER - Current request identifier.
+    --   p_request_org_id        NUMBER - Master request organization.
+    --   p_item_type_attr_id     NUMBER - Item Type attribute rule key.
+    --   p_item_attribute_id     NUMBER - Attribute definition key.
+    --   p_apex_row_status       VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_attribute_value       VARCHAR2 - Entered/normalized value.
+    --   p_item_attr_value_id    NUMBER - Existing/new value row key.
+    --   p_record_version_number NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_master_attribute
+    (
+        p_item_request_id       IN NUMBER,
+        p_request_org_id        IN NUMBER,
+        p_item_type_attr_id     IN NUMBER,
+        p_item_attribute_id     IN NUMBER,
+        p_apex_row_status       IN VARCHAR2,
+        p_attribute_value       IN OUT ops.adre_inv_item_attr_value.attribute_value%TYPE,
+        p_item_attr_value_id    IN OUT ops.adre_inv_item_attr_value.item_attr_value_id%TYPE,
+        p_record_version_number IN OUT ops.adre_inv_item_attr_value.record_version_number%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_target_category
+    -- Purpose:
+    --   Validates and saves one configured Target category value for the
+    --   selected request organization.
+    -- Input Parameters:
+    --   p_item_request_id        NUMBER - Current request identifier.
+    --   p_selected_request_org_id NUMBER - Target selected on the page.
+    --   p_request_org_id         NUMBER - Target organization on the row.
+    --   p_ebs_category_set_id    NUMBER - EBS category set identifier.
+    --   p_apex_row_status        VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_category_value         VARCHAR2 - Entered/trimmed value.
+    --   p_item_category_id       NUMBER - Existing/new category row key.
+    --   p_ebs_category_id        NUMBER - Resolved EBS category key.
+    --   p_record_version_number  NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_target_category
+    (
+        p_item_request_id         IN NUMBER,
+        p_selected_request_org_id IN NUMBER,
+        p_request_org_id          IN NUMBER,
+        p_ebs_category_set_id     IN NUMBER,
+        p_apex_row_status         IN VARCHAR2,
+        p_category_value          IN OUT ops.adre_inv_item_category.category_value%TYPE,
+        p_item_category_id        IN OUT ops.adre_inv_item_category.item_category_id%TYPE,
+        p_ebs_category_id         IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        p_record_version_number   IN OUT ops.adre_inv_item_category.record_version_number%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_target_attribute
+    -- Purpose:
+    --   Validates and saves one configured Target attribute, including
+    --   Target-specific Planner and UOM validation.
+    -- Input Parameters:
+    --   p_item_request_id         NUMBER - Current request identifier.
+    --   p_selected_request_org_id NUMBER - Target selected on the page.
+    --   p_request_org_id          NUMBER - Target organization on the row.
+    --   p_item_type_attr_id       NUMBER - Item Type attribute rule key.
+    --   p_item_attribute_id       NUMBER - Attribute definition key.
+    --   p_apex_row_status         VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_attribute_value         VARCHAR2 - Entered/normalized value.
+    --   p_value_uom_code          VARCHAR2 - Derived value UOM code.
+    --   p_item_attr_value_id      NUMBER - Existing/new value row key.
+    --   p_record_version_number   NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_target_attribute
+    (
+        p_item_request_id         IN NUMBER,
+        p_selected_request_org_id IN NUMBER,
+        p_request_org_id          IN NUMBER,
+        p_item_type_attr_id       IN NUMBER,
+        p_item_attribute_id       IN NUMBER,
+        p_apex_row_status         IN VARCHAR2,
+        p_attribute_value         IN OUT ops.adre_inv_item_attr_value.attribute_value%TYPE,
+        p_value_uom_code          IN OUT ops.adre_inv_item_attr_value.value_uom_code%TYPE,
+        p_item_attr_value_id      IN OUT ops.adre_inv_item_attr_value.item_attr_value_id%TYPE,
+        p_record_version_number   IN OUT ops.adre_inv_item_attr_value.record_version_number%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_section_attribute
+    -- Purpose:
+    --   Creates, updates, or deletes an attribute definition in a section
+    --   and assigns a display sequence for new definitions.
+    -- Input Parameters:
+    --   p_item_section_id      NUMBER - Selected section identifier.
+    --   p_apex_row_status      VARCHAR2 - Interactive Grid row action.
+    --   p_attribute_code       VARCHAR2 - Attribute code.
+    --   p_attribute_name       VARCHAR2 - Attribute display name.
+    --   p_attribute_data_type  VARCHAR2 - Attribute data type.
+    --   p_description          VARCHAR2 - Attribute description.
+    --   p_default_value        VARCHAR2 - Configured default value.
+    --   p_unit_of_measure      VARCHAR2 - Configured unit of measure.
+    --   p_required_flag        VARCHAR2 - Required indicator.
+    --   p_active_flag          VARCHAR2 - Active indicator.
+    --   p_ebs_attribute_name   VARCHAR2 - EBS attribute name.
+    --   p_ebs_attribute_group  VARCHAR2 - EBS attribute group.
+    -- Input/Output Parameters:
+    --   p_item_attribute_id    NUMBER - Existing/new attribute key.
+    --   p_display_sequence     NUMBER - Existing/new display order.
+    --   p_record_version_number NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_section_attribute
+    (
+        p_item_section_id      IN ops.adre_inv_item_section.item_section_id%TYPE,
+        p_apex_row_status      IN VARCHAR2,
+        p_attribute_code       IN ops.adre_inv_item_attribute.attribute_code%TYPE,
+        p_attribute_name       IN ops.adre_inv_item_attribute.attribute_name%TYPE,
+        p_attribute_data_type  IN ops.adre_inv_item_attribute.attribute_data_type%TYPE,
+        p_description          IN ops.adre_inv_item_attribute.description%TYPE,
+        p_default_value        IN ops.adre_inv_item_attribute.default_value%TYPE,
+        p_unit_of_measure      IN ops.adre_inv_item_attribute.unit_of_measure%TYPE,
+        p_required_flag        IN ops.adre_inv_item_attribute.required_flag%TYPE,
+        p_active_flag          IN ops.adre_inv_item_attribute.active_flag%TYPE,
+        p_ebs_attribute_name   IN ops.adre_inv_item_attribute.ebs_attribute_name%TYPE,
+        p_ebs_attribute_group  IN ops.adre_inv_item_attribute.ebs_attribute_group%TYPE,
+        p_item_attribute_id    IN OUT ops.adre_inv_item_attribute.item_attribute_id%TYPE,
+        p_display_sequence     IN OUT ops.adre_inv_item_attribute.display_sequence%TYPE,
+        p_record_version_number IN OUT ops.adre_inv_item_attribute.record_version_number%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_load_attribute_metadata
+    -- Purpose: Read the active attribute name and data type for a current
+    --          MASTER attribute form. A null identifier leaves outputs as is.
+    -- Input Parameters:
+    --   p_item_attribute_id NUMBER - OPS attribute identifier.
+    -- Input/Output Parameters:
+    --   x_attribute_name VARCHAR2 - Display name for the form.
+    --   x_attribute_data_type VARCHAR2 - Configured attribute data type.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_load_attribute_metadata
+    (
+        p_item_attribute_id     IN     ops.adre_inv_item_attribute.item_attribute_id%TYPE,
+        x_attribute_name        IN OUT ops.adre_inv_item_attribute.attribute_name%TYPE,
+        x_attribute_data_type   IN OUT ops.adre_inv_item_attribute.attribute_data_type%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_prepare_master_category
+    -- Purpose: Resolve the selected EBS category for a draft MASTER request
+    --          and prepare the values used by the existing APEX form DML.
+    -- Input Parameters:
+    --   p_item_category_id NUMBER - Existing category row, if any.
+    --   p_category_set_id NUMBER - EBS category set identifier.
+    --   p_category_value VARCHAR2 - Selected category value.
+    --   p_request_org_id NUMBER - MASTER request organization identifier.
+    --   p_app_user VARCHAR2 - APEX actor name.
+    -- Input/Output Parameters:
+    --   x_record_version_number NUMBER - Form row version.
+    --   x_created_by VARCHAR2 - Creator for a new row.
+    --   x_ebs_category_id NUMBER - Resolved EBS category identifier.
+    --   x_assignment_status VARCHAR2 - Draft assignment status.
+    --   x_last_updated_by VARCHAR2 - Last updating actor.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_prepare_master_category
+    (
+        p_item_category_id       IN     ops.adre_inv_item_category.item_category_id%TYPE,
+        p_category_set_id        IN     ops.adre_inv_item_category.ebs_category_set_id%TYPE,
+        p_category_value         IN     ops.adre_inv_item_category.category_value%TYPE,
+        p_request_org_id         IN     ops.adre_inv_item_request_org.request_org_id%TYPE,
+        p_app_user               IN     ops.adre_inv_item_category.last_updated_by%TYPE,
+        x_record_version_number  IN OUT ops.adre_inv_item_category.record_version_number%TYPE,
+        x_created_by             IN OUT ops.adre_inv_item_category.created_by%TYPE,
+        x_ebs_category_id        IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        x_assignment_status      IN OUT ops.adre_inv_item_category.assignment_status%TYPE,
+        x_last_updated_by        IN OUT ops.adre_inv_item_category.last_updated_by%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_prepare_target_category
+    -- Purpose: Validate a draft TARGET category set and row, resolve the EBS
+    --          category, and prepare the existing APEX form DML values.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Item request identifier.
+    --   p_request_org_id NUMBER - TARGET request organization identifier.
+    --   p_category_set_id NUMBER - EBS category set identifier.
+    --   p_item_category_id NUMBER - Existing category row, if any.
+    --   p_category_value VARCHAR2 - Selected category value.
+    --   p_app_user VARCHAR2 - APEX actor name.
+    -- Input/Output Parameters:
+    --   x_ebs_category_id NUMBER - Resolved EBS category identifier.
+    --   x_assignment_status VARCHAR2 - Draft assignment status.
+    --   x_last_updated_by VARCHAR2 - Last updating actor.
+    --   x_last_update_date VARCHAR2 - Formatted update timestamp.
+    --   x_created_by VARCHAR2 - Creator for a new row.
+    --   x_creation_date VARCHAR2 - Formatted creation timestamp.
+    --   x_record_version_number NUMBER - Form row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_prepare_target_category
+    (
+        p_item_request_id        IN     ops.adre_inv_item_request.item_request_id%TYPE,
+        p_request_org_id         IN     ops.adre_inv_item_request_org.request_org_id%TYPE,
+        p_category_set_id        IN     ops.adre_inv_item_category.ebs_category_set_id%TYPE,
+        p_item_category_id       IN     ops.adre_inv_item_category.item_category_id%TYPE,
+        p_category_value         IN     ops.adre_inv_item_category.category_value%TYPE,
+        p_app_user               IN     ops.adre_inv_item_category.last_updated_by%TYPE,
+        x_ebs_category_id        IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        x_assignment_status      IN OUT ops.adre_inv_item_category.assignment_status%TYPE,
+        x_last_updated_by        IN OUT ops.adre_inv_item_category.last_updated_by%TYPE,
+        x_last_update_date       IN OUT VARCHAR2,
+        x_created_by             IN OUT ops.adre_inv_item_category.created_by%TYPE,
+        x_creation_date          IN OUT VARCHAR2,
+        x_record_version_number  IN OUT ops.adre_inv_item_category.record_version_number%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_remove_target_organization
+    -- Purpose: Remove an unprocessed draft TARGET assignment and its staged
+    --          dependent rows when that assignment has no API history.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Item request identifier.
+    --   p_request_org_id NUMBER - TARGET request organization identifier.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_remove_target_organization
+    (
+        p_item_request_id  IN ops.adre_inv_item_request.item_request_id%TYPE,
+        p_request_org_id   IN ops.adre_inv_item_request_org.request_org_id%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_approval_decision
+    -- Purpose: Record the existing Engineering or Finance approval decision.
+    -- Input Parameters:
+    --   p_item_approval_id NUMBER - Approval row identifier.
+    --   p_request VARCHAR2 - APEX button request.
+    --   p_decision_comments CLOB - Entered approval comments.
+    --   p_app_user VARCHAR2 - APEX actor name.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_approval_decision
+    (
+        p_item_approval_id  IN ops.adre_inv_item_approval.item_approval_id%TYPE,
+        p_request           IN VARCHAR2,
+        p_decision_comments IN ops.adre_inv_item_approval.decision_comments%TYPE,
+        p_app_user          IN ops.adre_inv_item_approval.decision_by%TYPE
+    );
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_load_approval
+    -- Purpose: Load an approval and its request item number into the current
+    --          approval form. A missing row leaves the form values unchanged.
+    -- Input Parameters:
+    --   p_item_approval_id NUMBER - Approval row identifier.
+    -- Input/Output Parameters:
+    --   x_item_request_id NUMBER - Parent item request identifier.
+    --   x_item_number VARCHAR2 - Request item number.
+    --   x_approval_type VARCHAR2 - Engineering or Finance type.
+    --   x_approval_status VARCHAR2 - Current approval status.
+    --   x_decision_comments CLOB - Saved approval comments.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_load_approval
+    (
+        p_item_approval_id  IN     ops.adre_inv_item_approval.item_approval_id%TYPE,
+        x_item_request_id   IN OUT ops.adre_inv_item_request.item_request_id%TYPE,
+        x_item_number       IN OUT ops.adre_inv_item_request.item_number%TYPE,
+        x_approval_type     IN OUT ops.adre_inv_item_approval.approval_type%TYPE,
+        x_approval_status   IN OUT ops.adre_inv_item_approval.approval_status%TYPE,
+        x_decision_comments IN OUT ops.adre_inv_item_approval.decision_comments%TYPE
+    );
+
 END adre_create_inv_item;
 /
+
+-- =====================================================================
+-- Adhesives Research
+-- Package     : APPS.ADRE_CREATE_INV_ITEM
+-- Component   : Package Body
+-- Author      : Joel Calzadilla
+-- Date        : 30-OCT-2026
+-- Release     : V37
+-- Purpose     : Create and configure Inventory Items from OPS requests.
+-- Design      : Resolve organizations, templates, attributes and categories
+--               from OPS configuration and Oracle EBS metadata.
+-- Transaction : EBS processing controls its commit; APEX draft edits use the
+--               APEX request transaction. No SAVEPOINT is used.
+-- =====================================================================
 
 CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     c_application_code      CONSTANT VARCHAR2(30)  := 'XINV';
@@ -7383,7 +7807,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     RETURN VARCHAR2
     IS
     BEGIN
-        RETURN 'V36';
+        RETURN 'V37';
     EXCEPTION
         WHEN OTHERS THEN
             pcd_write_log
@@ -7415,8 +7839,16 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
 
 
--- Adhesives Research | Joel Calzadilla | 2026-10-16
-  -- Save request and initialize missing organization defaults.
+    -- Procedure: p_save_draft_request
+    -- Purpose: Save a draft and initialize configured Master assignments.
+    -- Inputs: p_request_number VARCHAR2; p_request_status VARCHAR2;
+    --         p_item_type_id NUMBER; p_base_part_number VARCHAR2;
+    --         p_item_number VARCHAR2; p_part_status VARCHAR2;
+    --         p_item_description VARCHAR2; p_long_description CLOB;
+    --         p_primary_uom_code VARCHAR2; p_initiator VARCHAR2;
+    --         p_requested_creation_date DATE; p_forecast_flag VARCHAR2;
+    --         p_app_user VARCHAR2.
+    -- Input/Output: p_item_request_id NUMBER; p_item_status_code VARCHAR2.
     PROCEDURE p_save_draft_request (
     p_item_request_id IN OUT ops.adre_inv_item_request.item_request_id%TYPE,
     p_request_number IN ops.adre_inv_item_request.request_number%TYPE,
@@ -7526,6 +7958,10 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
   
 --
 
+    -- Procedure: p_add_target_organization
+    -- Purpose: Add a configured Target to a draft and stage defaults.
+    -- Inputs: p_item_request_id NUMBER; p_target_org_id NUMBER;
+    --         p_app_user VARCHAR2.
 PROCEDURE p_add_target_organization (
   p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
   p_target_org_id   IN ops.adre_inv_item_request_org.ebs_organization_id%TYPE,
@@ -7535,7 +7971,6 @@ PROCEDURE p_add_target_organization (
   l_org_id NUMBER;
   l_status ops.adre_inv_item_request.request_status%TYPE;
 BEGIN
-  -- Adhesives Research | Joel Calzadilla | 2026-10-23
   -- Add TARGET organization and initialize configured defaults.
 
   IF p_item_request_id IS NULL OR p_target_org_id IS NULL THEN
@@ -7651,6 +8086,1605 @@ EXCEPTION
   WHEN no_data_found THEN
     raise_application_error(-20004, 'Request no longer exists.');
 END p_add_target_organization;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_submit_request
+    -- Purpose: Mark eligible staged rows READY and execute the EBS item API.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Request being submitted.
+    --   p_app_user VARCHAR2 - APEX user recorded as the submitter.
+    -- Output Parameters:
+    --   x_return_status VARCHAR2 - S, E, or U from item processing.
+    --   x_message CLOB - EBS result and diagnostics.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_submit_request
+    (
+        p_item_request_id IN NUMBER,
+        p_app_user IN VARCHAR2,
+        x_return_status OUT VARCHAR2,
+        x_message OUT CLOB
+    )
+    IS
+        l_request_status ops.adre_inv_item_request.request_status%TYPE;
+    BEGIN
+        SELECT req.request_status
+          INTO l_request_status
+          FROM ops.adre_inv_item_request req
+         WHERE req.item_request_id = p_item_request_id
+           FOR UPDATE;
+
+        IF l_request_status NOT IN ('DRAFT', 'ERROR') THEN
+            raise_application_error
+            (
+                -20003,
+                'Only a DRAFT or ERROR request can be submitted to EBS.'
+            );
+        END IF;
+
+        UPDATE ops.adre_inv_item_attr_value attval
+           SET attval.value_status = 'READY'
+         WHERE attval.value_status = 'DRAFT'
+           AND EXISTS
+               (
+                   SELECT 1
+                     FROM ops.adre_inv_item_request_org reqorg
+                    WHERE reqorg.request_org_id = attval.request_org_id
+                      AND reqorg.item_request_id = p_item_request_id
+               );
+
+        UPDATE ops.adre_inv_item_category itecat
+           SET itecat.assignment_status = 'READY'
+         WHERE itecat.assignment_status = 'DRAFT'
+           AND EXISTS
+               (
+                   SELECT 1
+                     FROM ops.adre_inv_item_request_org reqorg
+                    WHERE reqorg.request_org_id = itecat.request_org_id
+                      AND reqorg.item_request_id = p_item_request_id
+               );
+
+        UPDATE ops.adre_inv_item_request_org reqorg
+           SET reqorg.assignment_status = 'READY'
+         WHERE reqorg.item_request_id = p_item_request_id
+           AND reqorg.assignment_status = 'DRAFT';
+
+        UPDATE ops.adre_inv_item_request req
+           SET req.request_status = 'READY',
+               req.ebs_submit_date = SYSDATE,
+               req.last_updated_by = p_app_user,
+               req.last_update_date = SYSDATE
+         WHERE req.item_request_id = p_item_request_id;
+
+        pcd_process_request
+        (
+            p_item_request_id => p_item_request_id,
+            p_validate_only_flag => 'N',
+            p_user_id => NULL,
+            p_resp_id => NULL,
+            p_resp_appl_id => NULL,
+            p_commit_flag => 'Y',
+            x_return_status => x_return_status,
+            x_message => x_message
+        );
+
+        IF NVL(x_return_status, '?') NOT IN ('S', 'E', 'U') THEN
+            raise_application_error
+            (
+                -20002,
+                'Unexpected Oracle EBS processing status: ' ||
+                NVL(x_return_status, 'NULL')
+            );
+        END IF;
+    END p_apex_submit_request;
+
+    -- ---------------------------------------------------------------------
+    -- Function: fnc_apex_request_can_delete
+    -- Purpose: Permit deletion only before an item exists in Oracle EBS.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Request selected in APEX.
+    -- Return:
+    --   VARCHAR2 - Y for an eligible DRAFT or ERROR request; otherwise N.
+    -- ---------------------------------------------------------------------
+    FUNCTION fnc_apex_request_can_delete
+    (
+        p_item_request_id IN NUMBER
+    )
+    RETURN VARCHAR2
+    IS
+        l_eligible_count NUMBER;
+    BEGIN
+        IF p_item_request_id IS NULL THEN
+            RETURN 'N';
+        END IF;
+
+        SELECT COUNT(*)
+          INTO l_eligible_count
+          FROM ops.adre_inv_item_request req
+         WHERE req.item_request_id = p_item_request_id
+           AND UPPER(TRIM(req.request_status)) IN ('DRAFT', 'ERROR')
+           AND NOT EXISTS
+               (
+                   SELECT 1
+                     FROM ops.adre_inv_item_request_org reqorg
+                    WHERE reqorg.item_request_id = req.item_request_id
+                      AND reqorg.ebs_inventory_item_id IS NOT NULL
+               )
+           AND NOT EXISTS
+               (
+                   SELECT 1
+                     FROM apps.mtl_system_items_kfv item
+                    WHERE item.concatenated_segments = req.item_number
+               );
+
+        IF l_eligible_count = 1 THEN
+            RETURN 'Y';
+        END IF;
+
+        RETURN 'N';
+    END fnc_apex_request_can_delete;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_delete_request
+    -- Purpose: Remove an eligible request and its dependent OPS records.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Request selected for deletion.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_delete_request
+    (
+        p_item_request_id IN NUMBER
+    )
+    IS
+        l_request_status ops.adre_inv_item_request.request_status%TYPE;
+    BEGIN
+        IF p_item_request_id IS NULL THEN
+            raise_application_error
+            (
+                -20910,
+                'Delete Request requires an existing Item Request ID.'
+            );
+        END IF;
+
+        SELECT initre.request_status
+          INTO l_request_status
+          FROM ops.adre_inv_item_request initre
+         WHERE initre.item_request_id = p_item_request_id
+           FOR UPDATE NOWAIT;
+
+        IF UPPER(TRIM(l_request_status)) NOT IN ('DRAFT', 'ERROR') THEN
+            raise_application_error
+            (
+                -20915,
+                'Only DRAFT or ERROR Item Requests can be deleted.'
+            );
+        END IF;
+
+        IF fnc_apex_request_can_delete(p_item_request_id) <> 'Y' THEN
+            raise_application_error
+            (
+                -20916,
+                'The item already exists in EBS and its OPS request cannot be deleted.'
+            );
+        END IF;
+
+        DELETE FROM ops.adre_inv_item_bom_comp bomcom
+         WHERE bomcom.item_bom_id IN
+               (
+                   SELECT itebom.item_bom_id
+                     FROM ops.adre_inv_item_bom itebom,
+                          ops.adre_inv_item_request_org itreor
+                    WHERE itebom.request_org_id = itreor.request_org_id
+                      AND itreor.item_request_id = p_item_request_id
+               );
+
+        DELETE FROM ops.adre_inv_item_approval initap
+         WHERE initap.item_request_id = p_item_request_id;
+
+        DELETE FROM ops.adre_inv_item_api_log apilog
+         WHERE apilog.item_request_id = p_item_request_id;
+
+        DELETE FROM ops.adre_inv_item_attr_value attval
+         WHERE attval.request_org_id IN
+               (
+                   SELECT itreor.request_org_id
+                     FROM ops.adre_inv_item_request_org itreor
+                    WHERE itreor.item_request_id = p_item_request_id
+               );
+
+        DELETE FROM ops.adre_inv_item_category initca
+         WHERE initca.request_org_id IN
+               (
+                   SELECT itreor.request_org_id
+                     FROM ops.adre_inv_item_request_org itreor
+                    WHERE itreor.item_request_id = p_item_request_id
+               );
+
+        DELETE FROM ops.adre_inv_item_document initdoc
+         WHERE initdoc.request_org_id IN
+               (
+                   SELECT itreor.request_org_id
+                     FROM ops.adre_inv_item_request_org itreor
+                    WHERE itreor.item_request_id = p_item_request_id
+               );
+
+        DELETE FROM ops.adre_inv_item_bom itebom
+         WHERE itebom.request_org_id IN
+               (
+                   SELECT itreor.request_org_id
+                     FROM ops.adre_inv_item_request_org itreor
+                    WHERE itreor.item_request_id = p_item_request_id
+               );
+
+        DELETE FROM ops.adre_inv_item_request_org itreor
+         WHERE itreor.item_request_id = p_item_request_id;
+
+        DELETE FROM ops.adre_inv_item_request initre
+         WHERE initre.item_request_id = p_item_request_id;
+
+        IF SQL%ROWCOUNT <> 1 THEN
+            raise_application_error
+            (
+                -20920,
+                'Delete Request expected exactly one Item Request row.'
+            );
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            raise_application_error
+            (
+                -20925,
+                'Delete Request could not find the selected Item Request.'
+            );
+
+        WHEN OTHERS THEN
+            raise_application_error
+            (
+                -20930,
+                'Unexpected Error in PROC_DELETE_REQUEST: ' || SQLERRM,
+                TRUE
+            );
+    END p_apex_delete_request;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_load_request
+    -- Purpose: Populate the General tab from OPS or start a new draft.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Request to load, or NULL for a new draft.
+    --   p_app_user VARCHAR2 - Initiator when a new draft is opened.
+    -- Input/Output Parameters:
+    --   x_* - General request fields; preserved when no row is found.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_load_request
+    (
+        p_item_request_id IN NUMBER,
+        p_app_user IN VARCHAR2,
+        x_request_number IN OUT ops.adre_inv_item_request.request_number%TYPE,
+        x_request_status IN OUT ops.adre_inv_item_request.request_status%TYPE,
+        x_item_type_id IN OUT ops.adre_inv_item_request.item_type_id%TYPE,
+        x_base_part_number IN OUT ops.adre_inv_item_request.base_part_number%TYPE,
+        x_item_number IN OUT ops.adre_inv_item_request.item_number%TYPE,
+        x_part_status IN OUT ops.adre_inv_item_request.part_status%TYPE,
+        x_item_description IN OUT ops.adre_inv_item_request.item_description%TYPE,
+        x_long_description IN OUT ops.adre_inv_item_request.long_description%TYPE,
+        x_primary_uom_code IN OUT ops.adre_inv_item_request.primary_uom_code%TYPE,
+        x_item_status_code IN OUT ops.adre_inv_item_request.item_status_code%TYPE,
+        x_initiator IN OUT ops.adre_inv_item_request.initiator%TYPE,
+        x_requested_creation_date IN OUT ops.adre_inv_item_request.requested_creation_date%TYPE,
+        x_forecast_flag IN OUT ops.adre_inv_item_request.forecast_flag%TYPE
+    )
+    IS
+    BEGIN
+        IF p_item_request_id IS NOT NULL THEN
+            SELECT req.request_number,
+                   req.request_status,
+                   req.item_type_id,
+                   req.base_part_number,
+                   req.item_number,
+                   req.part_status,
+                   req.item_description,
+                   req.long_description,
+                   req.primary_uom_code,
+                   req.item_status_code,
+                   req.initiator,
+                   req.requested_creation_date,
+                   req.forecast_flag
+              INTO x_request_number,
+                   x_request_status,
+                   x_item_type_id,
+                   x_base_part_number,
+                   x_item_number,
+                   x_part_status,
+                   x_item_description,
+                   x_long_description,
+                   x_primary_uom_code,
+                   x_item_status_code,
+                   x_initiator,
+                   x_requested_creation_date,
+                   x_forecast_flag
+              FROM ops.adre_inv_item_request req
+             WHERE req.item_request_id = p_item_request_id;
+        ELSE
+            x_request_status := 'DRAFT';
+
+            x_initiator := p_app_user;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            NULL;
+    END p_apex_load_request;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_apex_validate_target_selection
+    -- Purpose: Clear a TARGET selection that does not belong to the request.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Current request.
+    -- Input/Output Parameters:
+    --   io_request_org_id NUMBER - TARGET assignment selected in APEX.
+    -- Output Parameters:
+    --   x_target_code VARCHAR2 - EBS organization code when valid.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_apex_validate_target_selection
+    (
+        p_item_request_id IN NUMBER,
+        io_request_org_id IN OUT NUMBER,
+        x_target_code OUT VARCHAR2
+    )
+    IS
+    BEGIN
+        x_target_code := NULL;
+
+        IF p_item_request_id IS NULL
+           OR io_request_org_id IS NULL THEN
+            io_request_org_id := NULL;
+        ELSE
+            BEGIN
+                SELECT mp.organization_code
+                  INTO x_target_code
+                  FROM ops.adre_inv_item_request_org reqorg,
+                       apps.mtl_parameters mp
+                 WHERE reqorg.request_org_id = io_request_org_id
+                   AND reqorg.item_request_id = p_item_request_id
+                   AND reqorg.organization_role = 'TARGET'
+                   AND mp.organization_id = reqorg.ebs_organization_id;
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    io_request_org_id := NULL;
+
+                    x_target_code := NULL;
+            END;
+        END IF;
+    END p_apex_validate_target_selection;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_master_category
+    -- Purpose:
+    --   Saves a Master category selected in the request's Interactive Grid.
+    -- Input Parameters:
+    --   p_item_request_id       NUMBER - Request identifier.
+    --   p_request_org_id        NUMBER - Master request organization.
+    --   p_ebs_category_set_id   NUMBER - Configured EBS category set.
+    --   p_apex_row_status       VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_category_value        VARCHAR2 - Entered/trimmed category value.
+    --   p_item_category_id      NUMBER - Persisted category row key.
+    --   p_ebs_category_id       NUMBER - Resolved EBS category key.
+    --   p_record_version_number NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_master_category
+    (
+        p_item_request_id       IN NUMBER,
+        p_request_org_id        IN NUMBER,
+        p_ebs_category_set_id   IN NUMBER,
+        p_apex_row_status       IN VARCHAR2,
+        p_category_value        IN OUT ops.adre_inv_item_category.category_value%TYPE,
+        p_item_category_id      IN OUT ops.adre_inv_item_category.item_category_id%TYPE,
+        p_ebs_category_id       IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        p_record_version_number IN OUT ops.adre_inv_item_category.record_version_number%TYPE
+    )
+    IS
+        l_status   VARCHAR2(30);
+        l_required VARCHAR2(1);
+        l_category NUMBER;
+        l_count    NUMBER;
+    BEGIN
+        IF NVL(p_apex_row_status, '?') <> 'U' THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Only updates are allowed.');
+        END IF;
+
+        SELECT request_status
+          INTO l_status
+          FROM ops.adre_inv_item_request
+         WHERE item_request_id = p_item_request_id
+           FOR UPDATE;
+
+        IF NVL(l_status, '?') NOT IN ('DRAFT', 'ERROR') THEN
+            RAISE_APPLICATION_ERROR(-20002, 'The request must be DRAFT or ERROR.');
+        END IF;
+
+        SELECT cfg.required_flag
+          INTO l_required
+          FROM ops.adre_inv_item_request_org org,
+               ops.adre_inv_item_org_cat_set cfg,
+               apps.mtl_category_sets_b cs
+         WHERE org.request_org_id = p_request_org_id
+           AND org.item_request_id = p_item_request_id
+           AND org.organization_role = 'MASTER'
+           AND cfg.ebs_organization_id = org.ebs_organization_id
+           AND cfg.ebs_category_set_id = p_ebs_category_set_id
+           AND cfg.active_flag = 'Y'
+           AND cs.category_set_id = cfg.ebs_category_set_id
+           AND cs.control_level = 1;
+
+        p_category_value := TRIM(p_category_value);
+
+        IF p_category_value IS NULL AND l_required = 'Y' THEN
+            RAISE_APPLICATION_ERROR(-20003, 'A category value is required.');
+        END IF;
+
+        IF p_category_value IS NOT NULL THEN
+            SELECT cat.category_id
+              INTO l_category
+              FROM apps.mtl_categories_kfv cat,
+                   apps.mtl_category_sets_b cs
+             WHERE cs.category_set_id = p_ebs_category_set_id
+               AND cat.concatenated_segments = p_category_value
+               AND ((cs.validate_flag = 'Y' AND EXISTS
+                    (
+                        SELECT 1
+                          FROM apps.mtl_category_set_valid_cats vc
+                         WHERE vc.category_set_id = cs.category_set_id
+                           AND vc.category_id = cat.category_id
+                    ))
+                    OR (cs.validate_flag = 'N'
+                        AND cat.structure_id = cs.structure_id));
+        END IF;
+
+        IF p_item_category_id IS NULL THEN
+            IF p_category_value IS NULL THEN
+                RETURN;
+            END IF;
+
+            SELECT COUNT(*)
+              INTO l_count
+              FROM ops.adre_inv_item_category
+             WHERE request_org_id = p_request_org_id
+               AND ebs_category_set_id = p_ebs_category_set_id;
+
+            IF l_count > 0 THEN
+                RAISE_APPLICATION_ERROR(-20004, 'Category already saved. Refresh.');
+            END IF;
+
+            INSERT INTO ops.adre_inv_item_category
+            (
+                request_org_id,
+                ebs_category_set_id,
+                ebs_category_id,
+                category_value,
+                assignment_status
+            )
+            VALUES
+            (
+                p_request_org_id,
+                p_ebs_category_set_id,
+                l_category,
+                p_category_value,
+                'DRAFT'
+            )
+            RETURNING item_category_id,
+                      ebs_category_id,
+                      record_version_number
+                 INTO p_item_category_id,
+                      p_ebs_category_id,
+                      p_record_version_number;
+        ELSE
+            UPDATE ops.adre_inv_item_category
+               SET ebs_category_id = l_category,
+                   category_value = p_category_value,
+                   assignment_status = 'DRAFT'
+             WHERE item_category_id = p_item_category_id
+               AND request_org_id = p_request_org_id
+               AND ebs_category_set_id = p_ebs_category_set_id
+               AND record_version_number = p_record_version_number
+            RETURNING ebs_category_id,
+                      record_version_number
+                 INTO p_ebs_category_id,
+                      p_record_version_number;
+
+            IF SQL%ROWCOUNT = 0 THEN
+                RAISE_APPLICATION_ERROR(-20005, 'Category changed. Refresh.');
+            END IF;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20006, 'Invalid request or category.');
+
+        WHEN TOO_MANY_ROWS THEN
+            RAISE_APPLICATION_ERROR(-20007, 'Multiple matching records found.');
+    END p_save_master_category;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_target_category
+    -- Purpose:
+    --   Saves an organization-controlled Target category for the selected
+    --   request organization.
+    -- Input Parameters:
+    --   p_item_request_id         NUMBER - Request identifier.
+    --   p_selected_request_org_id NUMBER - Target selected on Page 20.
+    --   p_request_org_id          NUMBER - Target request organization.
+    --   p_ebs_category_set_id     NUMBER - Configured EBS category set.
+    --   p_apex_row_status         VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_category_value          VARCHAR2 - Entered/trimmed category value.
+    --   p_item_category_id        NUMBER - Persisted category row key.
+    --   p_ebs_category_id         NUMBER - Resolved EBS category key.
+    --   p_record_version_number   NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_target_category
+    (
+        p_item_request_id         IN NUMBER,
+        p_selected_request_org_id IN NUMBER,
+        p_request_org_id          IN NUMBER,
+        p_ebs_category_set_id     IN NUMBER,
+        p_apex_row_status         IN VARCHAR2,
+        p_category_value          IN OUT ops.adre_inv_item_category.category_value%TYPE,
+        p_item_category_id        IN OUT ops.adre_inv_item_category.item_category_id%TYPE,
+        p_ebs_category_id         IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        p_record_version_number   IN OUT ops.adre_inv_item_category.record_version_number%TYPE
+    )
+    IS
+        l_status   VARCHAR2(30);
+        l_required VARCHAR2(1);
+        l_category NUMBER;
+        l_count    NUMBER;
+    BEGIN
+        IF NVL(p_apex_row_status, '?') <> 'U' THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Only updates are allowed.');
+        END IF;
+
+        SELECT request_status
+          INTO l_status
+          FROM ops.adre_inv_item_request
+         WHERE item_request_id = p_item_request_id
+           FOR UPDATE;
+
+        IF NVL(l_status, '?') NOT IN ('DRAFT', 'ERROR') THEN
+            RAISE_APPLICATION_ERROR(-20002, 'The request must be DRAFT or ERROR.');
+        END IF;
+
+        SELECT cfg.required_flag
+          INTO l_required
+          FROM ops.adre_inv_item_request_org org,
+               ops.adre_inv_item_org_cat_set cfg,
+               apps.mtl_category_sets_b cs
+         WHERE org.request_org_id = p_request_org_id
+           AND org.request_org_id = p_selected_request_org_id
+           AND org.item_request_id = p_item_request_id
+           AND org.organization_role = 'TARGET'
+           AND cfg.ebs_organization_id = org.ebs_organization_id
+           AND cfg.ebs_category_set_id = p_ebs_category_set_id
+           AND cfg.active_flag = 'Y'
+           AND cs.category_set_id = cfg.ebs_category_set_id
+           AND cs.control_level = 2;
+
+        p_category_value := TRIM(p_category_value);
+
+        IF p_category_value IS NULL AND l_required = 'Y' THEN
+            RAISE_APPLICATION_ERROR(-20003, 'A category value is required.');
+        END IF;
+
+        IF p_category_value IS NOT NULL THEN
+            SELECT cat.category_id
+              INTO l_category
+              FROM apps.mtl_categories_kfv cat,
+                   apps.mtl_category_sets_b cs
+             WHERE cs.category_set_id = p_ebs_category_set_id
+               AND cat.concatenated_segments = p_category_value
+               AND ((cs.validate_flag = 'Y' AND EXISTS
+                    (
+                        SELECT 1
+                          FROM apps.mtl_category_set_valid_cats vc
+                         WHERE vc.category_set_id = cs.category_set_id
+                           AND vc.category_id = cat.category_id
+                    ))
+                    OR (cs.validate_flag = 'N'
+                        AND cat.structure_id = cs.structure_id));
+        END IF;
+
+        IF p_item_category_id IS NULL THEN
+            IF p_category_value IS NULL THEN
+                RETURN;
+            END IF;
+
+            SELECT COUNT(*)
+              INTO l_count
+              FROM ops.adre_inv_item_category
+             WHERE request_org_id = p_request_org_id
+               AND ebs_category_set_id = p_ebs_category_set_id;
+
+            IF l_count > 0 THEN
+                RAISE_APPLICATION_ERROR(-20004, 'Category already saved. Refresh.');
+            END IF;
+
+            INSERT INTO ops.adre_inv_item_category
+            (
+                request_org_id,
+                ebs_category_set_id,
+                ebs_category_id,
+                category_value,
+                assignment_status
+            )
+            VALUES
+            (
+                p_request_org_id,
+                p_ebs_category_set_id,
+                l_category,
+                p_category_value,
+                'DRAFT'
+            )
+            RETURNING item_category_id,
+                      ebs_category_id,
+                      record_version_number
+                 INTO p_item_category_id,
+                      p_ebs_category_id,
+                      p_record_version_number;
+        ELSE
+            UPDATE ops.adre_inv_item_category
+               SET ebs_category_id = l_category,
+                   category_value = p_category_value,
+                   assignment_status = 'DRAFT'
+             WHERE item_category_id = p_item_category_id
+               AND request_org_id = p_request_org_id
+               AND ebs_category_set_id = p_ebs_category_set_id
+               AND record_version_number = p_record_version_number
+            RETURNING ebs_category_id,
+                      record_version_number
+                 INTO p_ebs_category_id,
+                      p_record_version_number;
+
+            IF SQL%ROWCOUNT = 0 THEN
+                RAISE_APPLICATION_ERROR(-20005, 'Category changed. Refresh.');
+            END IF;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20006, 'Invalid request or category.');
+
+        WHEN TOO_MANY_ROWS THEN
+            RAISE_APPLICATION_ERROR(-20007, 'Multiple matching records found.');
+    END p_save_target_category;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_master_attribute
+    -- Purpose:
+    --   Validates and saves one Master attribute value from the request's
+    --   Interactive Grid, retaining its optimistic row version.
+    -- Input Parameters:
+    --   p_item_request_id       NUMBER - Request identifier.
+    --   p_request_org_id        NUMBER - Master request organization.
+    --   p_item_type_attr_id     NUMBER - Item Type attribute rule key.
+    --   p_item_attribute_id     NUMBER - Attribute definition key.
+    --   p_apex_row_status       VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_attribute_value       VARCHAR2 - Entered/normalized value.
+    --   p_item_attr_value_id    NUMBER - Existing/new value row key.
+    --   p_record_version_number NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_master_attribute
+    (
+        p_item_request_id       IN NUMBER,
+        p_request_org_id        IN NUMBER,
+        p_item_type_attr_id     IN NUMBER,
+        p_item_attribute_id     IN NUMBER,
+        p_apex_row_status       IN VARCHAR2,
+        p_attribute_value       IN OUT ops.adre_inv_item_attr_value.attribute_value%TYPE,
+        p_item_attr_value_id    IN OUT ops.adre_inv_item_attr_value.item_attr_value_id%TYPE,
+        p_record_version_number IN OUT ops.adre_inv_item_attr_value.record_version_number%TYPE
+    )
+    IS
+        l_status   VARCHAR2(30);
+        l_type     VARCHAR2(30);
+        l_required VARCHAR2(1);
+        l_number   NUMBER;
+        l_date     DATE;
+        l_value    ops.adre_inv_item_attr_value.attribute_value%TYPE;
+    BEGIN
+        IF NVL(p_apex_row_status, '?') <> 'U' THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Only updates are allowed.');
+        END IF;
+
+        SELECT request_status
+          INTO l_status
+          FROM ops.adre_inv_item_request
+         WHERE item_request_id = p_item_request_id
+           FOR UPDATE;
+
+        IF NVL(l_status, '?') NOT IN ('DRAFT', 'ERROR') THEN
+            RAISE_APPLICATION_ERROR(-20002, 'The request must be DRAFT or ERROR.');
+        END IF;
+
+        SELECT a.attribute_data_type,
+               NVL(ta.required_flag, a.required_flag)
+          INTO l_type,
+               l_required
+          FROM ops.adre_inv_item_request q,
+               ops.adre_inv_item_request_org o,
+               ops.adre_inv_item_type_attr ta,
+               ops.adre_inv_item_attribute a
+         WHERE q.item_request_id = p_item_request_id
+           AND o.item_request_id = q.item_request_id
+           AND o.request_org_id = p_request_org_id
+           AND o.organization_role = 'MASTER'
+           AND ta.item_type_id = q.item_type_id
+           AND ta.item_type_attr_id = p_item_type_attr_id
+           AND ta.active_flag = 'Y'
+           AND ta.organization_scope IN ('MASTER', 'BOTH')
+           AND a.item_attribute_id = ta.item_attribute_id
+           AND a.item_attribute_id = p_item_attribute_id
+           AND a.active_flag = 'Y';
+
+        l_value := TRIM(p_attribute_value);
+
+        IF l_value IS NULL AND l_required = 'Y' THEN
+            RAISE_APPLICATION_ERROR(-20003, 'An attribute value is required.');
+        END IF;
+
+        IF l_type NOT IN ('CHAR', 'NUMBER', 'DATE', 'YES_NO') OR l_type IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20004, 'Unsupported attribute data type.');
+        END IF;
+
+        IF l_value IS NOT NULL THEN
+            IF l_type = 'YES_NO' THEN
+                l_value := UPPER(l_value);
+
+                IF l_value NOT IN ('Y', 'N') THEN
+                    RAISE_APPLICATION_ERROR(-20005, 'Enter Y or N.');
+                END IF;
+            ELSIF l_type = 'NUMBER' THEN
+                BEGIN
+                    l_number := TO_NUMBER(l_value);
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RAISE_APPLICATION_ERROR(-20006, 'Enter a valid number.');
+                END;
+            ELSIF l_type = 'DATE' THEN
+                BEGIN
+                    l_date := TO_DATE(l_value, 'FXYYYY-MM-DD');
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RAISE_APPLICATION_ERROR(-20007, 'Enter a date as YYYY-MM-DD.');
+                END;
+            END IF;
+        END IF;
+
+        p_attribute_value := l_value;
+
+        IF p_item_attr_value_id IS NULL THEN
+            IF l_value IS NULL THEN
+                RETURN;
+            END IF;
+
+            SELECT COUNT(*)
+              INTO l_number
+              FROM ops.adre_inv_item_attr_value
+             WHERE request_org_id = p_request_org_id
+               AND item_attribute_id = p_item_attribute_id;
+
+            IF l_number > 0 THEN
+                RAISE_APPLICATION_ERROR(-20008, 'Value already saved. Refresh.');
+            END IF;
+
+            INSERT INTO ops.adre_inv_item_attr_value
+            (
+                request_org_id,
+                item_attribute_id,
+                attribute_value,
+                value_status
+            )
+            VALUES
+            (
+                p_request_org_id,
+                p_item_attribute_id,
+                l_value,
+                'DRAFT'
+            )
+            RETURNING item_attr_value_id,
+                      record_version_number
+                 INTO p_item_attr_value_id,
+                      p_record_version_number;
+        ELSE
+            UPDATE ops.adre_inv_item_attr_value
+               SET attribute_value = l_value,
+                   value_status = 'DRAFT'
+             WHERE item_attr_value_id = p_item_attr_value_id
+               AND request_org_id = p_request_org_id
+               AND item_attribute_id = p_item_attribute_id
+               AND record_version_number = p_record_version_number
+            RETURNING record_version_number
+                 INTO p_record_version_number;
+
+            IF SQL%ROWCOUNT = 0 THEN
+                RAISE_APPLICATION_ERROR(-20009, 'Value changed or removed. Refresh.');
+            END IF;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20010, 'Invalid request or attribute configuration.');
+
+        WHEN TOO_MANY_ROWS THEN
+            RAISE_APPLICATION_ERROR(-20011, 'Multiple configuration records found.');
+    END p_save_master_attribute;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_target_attribute
+    -- Purpose:
+    --   Validates and saves a selected Target attribute value, including
+    --   configured UOM and organization-specific Planner checks.
+    -- Input Parameters:
+    --   p_item_request_id         NUMBER - Request identifier.
+    --   p_selected_request_org_id NUMBER - Target selected on Page 20.
+    --   p_request_org_id          NUMBER - Target request organization.
+    --   p_item_type_attr_id       NUMBER - Item Type attribute rule key.
+    --   p_item_attribute_id       NUMBER - Attribute definition key.
+    --   p_apex_row_status         VARCHAR2 - Interactive Grid row action.
+    -- Input/Output Parameters:
+    --   p_attribute_value         VARCHAR2 - Entered/normalized value.
+    --   p_value_uom_code          VARCHAR2 - Derived UOM code.
+    --   p_item_attr_value_id      NUMBER - Existing/new value row key.
+    --   p_record_version_number   NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_target_attribute
+    (
+        p_item_request_id         IN NUMBER,
+        p_selected_request_org_id IN NUMBER,
+        p_request_org_id          IN NUMBER,
+        p_item_type_attr_id       IN NUMBER,
+        p_item_attribute_id       IN NUMBER,
+        p_apex_row_status         IN VARCHAR2,
+        p_attribute_value         IN OUT ops.adre_inv_item_attr_value.attribute_value%TYPE,
+        p_value_uom_code          IN OUT ops.adre_inv_item_attr_value.value_uom_code%TYPE,
+        p_item_attr_value_id      IN OUT ops.adre_inv_item_attr_value.item_attr_value_id%TYPE,
+        p_record_version_number   IN OUT ops.adre_inv_item_attr_value.record_version_number%TYPE
+    )
+    IS
+        l_status         VARCHAR2(30);
+        l_type           VARCHAR2(30);
+        l_attribute_code VARCHAR2(100);
+        l_required       VARCHAR2(1);
+        l_organization_id NUMBER;
+        l_number         NUMBER;
+        l_date           DATE;
+        l_value          ops.adre_inv_item_attr_value.attribute_value%TYPE;
+        l_uom            ops.adre_inv_item_attr_value.value_uom_code%TYPE;
+
+        -- -----------------------------------------------------------------
+        -- Procedure: fail
+        -- Purpose:
+        --   Raises the existing page error code with a functional message.
+        -- Input Parameters:
+        --   p_message VARCHAR2 - Error text to display to the user.
+        -- -----------------------------------------------------------------
+        PROCEDURE fail
+        (
+            p_message IN VARCHAR2
+        )
+        IS
+        BEGIN
+            RAISE_APPLICATION_ERROR(-20001, p_message);
+        END fail;
+    BEGIN
+        IF NVL(p_apex_row_status, '?') <> 'U' THEN
+            fail('Updates only.');
+        END IF;
+
+        SELECT request_status
+          INTO l_status
+          FROM ops.adre_inv_item_request
+         WHERE item_request_id = p_item_request_id
+           FOR UPDATE;
+
+        IF NVL(l_status, '?') NOT IN ('DRAFT', 'ERROR') THEN
+            fail('Request must be DRAFT or ERROR.');
+        END IF;
+
+        SELECT a.attribute_data_type,
+               a.attribute_code,
+               NVL(ta.required_flag, a.required_flag),
+               ro.ebs_organization_id,
+               a.unit_of_measure
+          INTO l_type,
+               l_attribute_code,
+               l_required,
+               l_organization_id,
+               l_uom
+          FROM ops.adre_inv_item_request q,
+               ops.adre_inv_item_request_org ro,
+               ops.adre_inv_item_type_attr ta,
+               ops.adre_inv_item_attribute a
+         WHERE q.item_request_id = p_item_request_id
+           AND ro.item_request_id = q.item_request_id
+           AND ro.request_org_id = p_request_org_id
+           AND ro.request_org_id = p_selected_request_org_id
+           AND ro.organization_role = 'TARGET'
+           AND ta.item_type_id = q.item_type_id
+           AND ta.item_type_attr_id = p_item_type_attr_id
+           AND ta.active_flag = 'Y'
+           AND ta.organization_scope IN ('TARGET', 'BOTH')
+           AND a.item_attribute_id = ta.item_attribute_id
+           AND a.item_attribute_id = p_item_attribute_id
+           AND a.active_flag = 'Y';
+
+        l_value := TRIM(p_attribute_value);
+
+        l_uom := CASE
+                     WHEN l_value IS NOT NULL THEN UPPER(TRIM(l_uom))
+                 END;
+
+        IF l_value IS NULL AND l_required = 'Y' THEN
+            fail('Value required.');
+        END IF;
+
+        IF l_type IS NULL OR l_type NOT IN ('CHAR', 'NUMBER', 'DATE', 'YES_NO') THEN
+            fail('Unsupported type.');
+        END IF;
+
+        IF l_value IS NOT NULL THEN
+            IF l_type = 'YES_NO' THEN
+                l_value := UPPER(l_value);
+
+                IF l_value NOT IN ('Y', 'N') THEN
+                    fail('Enter Y or N.');
+                END IF;
+            ELSIF l_type = 'NUMBER' THEN
+                BEGIN
+                    l_number := TO_NUMBER(l_value);
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        fail('Enter a number.');
+                END;
+            ELSIF l_type = 'DATE' THEN
+                BEGIN
+                    l_date := TO_DATE(l_value, 'FXYYYY-MM-DD');
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        fail('Use YYYY-MM-DD.');
+                END;
+            END IF;
+
+            IF l_attribute_code = 'PLANNER' THEN
+                SELECT COUNT(*)
+                  INTO l_number
+                  FROM apps.mtl_planners
+                 WHERE organization_id = l_organization_id
+                   AND planner_code = l_value
+                   AND (disable_date IS NULL OR disable_date > SYSDATE);
+
+                IF l_number <> 1 THEN
+                    fail('Invalid planner for this organization.');
+                END IF;
+            END IF;
+        END IF;
+
+        IF l_uom IS NOT NULL THEN
+            SELECT COUNT(*)
+              INTO l_number
+              FROM apps.mtl_units_of_measure_vl
+             WHERE uom_code = l_uom
+               AND NVL(disable_date, TRUNC(SYSDATE) + 1) > TRUNC(SYSDATE);
+
+            IF l_number <> 1 THEN
+                fail('Invalid configured UOM.');
+            END IF;
+        END IF;
+
+        p_attribute_value := l_value;
+
+        p_value_uom_code := l_uom;
+
+        IF p_item_attr_value_id IS NULL THEN
+            IF l_value IS NULL THEN
+                RETURN;
+            END IF;
+
+            SELECT COUNT(*)
+              INTO l_number
+              FROM ops.adre_inv_item_attr_value
+             WHERE request_org_id = p_request_org_id
+               AND item_attribute_id = p_item_attribute_id;
+
+            IF l_number > 0 THEN
+                fail('Value exists. Refresh.');
+            END IF;
+
+            INSERT INTO ops.adre_inv_item_attr_value
+            (
+                request_org_id,
+                item_attribute_id,
+                attribute_value,
+                value_uom_code,
+                value_status
+            )
+            VALUES
+            (
+                p_request_org_id,
+                p_item_attribute_id,
+                l_value,
+                l_uom,
+                'DRAFT'
+            )
+            RETURNING item_attr_value_id,
+                      record_version_number
+                 INTO p_item_attr_value_id,
+                      p_record_version_number;
+        ELSE
+            UPDATE ops.adre_inv_item_attr_value
+               SET attribute_value = l_value,
+                   value_uom_code = l_uom,
+                   value_status = 'DRAFT'
+             WHERE item_attr_value_id = p_item_attr_value_id
+               AND request_org_id = p_request_org_id
+               AND item_attribute_id = p_item_attribute_id
+               AND record_version_number = p_record_version_number
+            RETURNING record_version_number
+                 INTO p_record_version_number;
+
+            IF SQL%ROWCOUNT = 0 THEN
+                fail('Value changed. Refresh.');
+            END IF;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            fail('Invalid configuration.');
+
+        WHEN TOO_MANY_ROWS THEN
+            fail('Duplicate configuration.');
+    END p_save_target_attribute;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_section_attribute
+    -- Purpose:
+    --   Performs the create, update, or delete action for one configured
+    --   attribute in a section; new rows receive the next display order.
+    -- Input Parameters:
+    --   p_item_section_id       NUMBER - Selected section identifier.
+    --   p_apex_row_status       VARCHAR2 - Interactive Grid row action.
+    --   p_attribute_code        VARCHAR2 - Attribute code.
+    --   p_attribute_name        VARCHAR2 - Attribute display name.
+    --   p_attribute_data_type   VARCHAR2 - Attribute data type.
+    --   p_description           VARCHAR2 - Attribute description.
+    --   p_default_value         VARCHAR2 - Configured default value.
+    --   p_unit_of_measure       VARCHAR2 - Configured unit of measure.
+    --   p_required_flag         VARCHAR2 - Required indicator.
+    --   p_active_flag           VARCHAR2 - Active indicator.
+    --   p_ebs_attribute_name    VARCHAR2 - EBS attribute name.
+    --   p_ebs_attribute_group   VARCHAR2 - EBS attribute group.
+    -- Input/Output Parameters:
+    --   p_item_attribute_id     NUMBER - Existing/new attribute key.
+    --   p_display_sequence      NUMBER - Existing/new display order.
+    --   p_record_version_number NUMBER - Optimistic row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_section_attribute
+    (
+        p_item_section_id       IN ops.adre_inv_item_section.item_section_id%TYPE,
+        p_apex_row_status       IN VARCHAR2,
+        p_attribute_code        IN ops.adre_inv_item_attribute.attribute_code%TYPE,
+        p_attribute_name        IN ops.adre_inv_item_attribute.attribute_name%TYPE,
+        p_attribute_data_type   IN ops.adre_inv_item_attribute.attribute_data_type%TYPE,
+        p_description           IN ops.adre_inv_item_attribute.description%TYPE,
+        p_default_value         IN ops.adre_inv_item_attribute.default_value%TYPE,
+        p_unit_of_measure       IN ops.adre_inv_item_attribute.unit_of_measure%TYPE,
+        p_required_flag         IN ops.adre_inv_item_attribute.required_flag%TYPE,
+        p_active_flag           IN ops.adre_inv_item_attribute.active_flag%TYPE,
+        p_ebs_attribute_name    IN ops.adre_inv_item_attribute.ebs_attribute_name%TYPE,
+        p_ebs_attribute_group   IN ops.adre_inv_item_attribute.ebs_attribute_group%TYPE,
+        p_item_attribute_id     IN OUT ops.adre_inv_item_attribute.item_attribute_id%TYPE,
+        p_display_sequence      IN OUT ops.adre_inv_item_attribute.display_sequence%TYPE,
+        p_record_version_number IN OUT ops.adre_inv_item_attribute.record_version_number%TYPE
+    )
+    IS
+        l_section_id       NUMBER;
+        l_display_sequence NUMBER;
+    BEGIN
+        CASE p_apex_row_status
+            WHEN 'C' THEN
+                -- Lock the section so concurrent inserts choose distinct order values.
+                SELECT itesec.item_section_id
+                  INTO l_section_id
+                  FROM ops.adre_inv_item_section itesec
+                 WHERE itesec.item_section_id = p_item_section_id
+                   FOR UPDATE;
+
+                SELECT NVL(MAX(iteattr.display_sequence), 0) + 10
+                  INTO l_display_sequence
+                  FROM ops.adre_inv_item_attribute iteattr
+                 WHERE iteattr.item_section_id = l_section_id;
+
+                INSERT INTO ops.adre_inv_item_attribute
+                (
+                    item_section_id,
+                    attribute_code,
+                    attribute_name,
+                    attribute_data_type,
+                    description,
+                    default_value,
+                    unit_of_measure,
+                    required_flag,
+                    active_flag,
+                    display_sequence,
+                    ebs_attribute_name,
+                    ebs_attribute_group
+                )
+                VALUES
+                (
+                    l_section_id,
+                    p_attribute_code,
+                    p_attribute_name,
+                    p_attribute_data_type,
+                    p_description,
+                    p_default_value,
+                    p_unit_of_measure,
+                    NVL(p_required_flag, 'N'),
+                    NVL(p_active_flag, 'Y'),
+                    l_display_sequence,
+                    p_ebs_attribute_name,
+                    p_ebs_attribute_group
+                )
+                RETURNING item_attribute_id,
+                          display_sequence,
+                          record_version_number
+                     INTO p_item_attribute_id,
+                          p_display_sequence,
+                          p_record_version_number;
+
+            WHEN 'U' THEN
+                UPDATE ops.adre_inv_item_attribute
+                   SET attribute_code = p_attribute_code,
+                       attribute_name = p_attribute_name,
+                       attribute_data_type = p_attribute_data_type,
+                       description = p_description,
+                       default_value = p_default_value,
+                       unit_of_measure = p_unit_of_measure,
+                       required_flag = p_required_flag,
+                       active_flag = p_active_flag,
+                       ebs_attribute_name = p_ebs_attribute_name,
+                       ebs_attribute_group = p_ebs_attribute_group
+                 WHERE item_attribute_id = p_item_attribute_id
+                   AND item_section_id = p_item_section_id
+                   AND record_version_number = p_record_version_number
+                RETURNING display_sequence,
+                          record_version_number
+                     INTO p_display_sequence,
+                          p_record_version_number;
+
+                IF SQL%ROWCOUNT = 0 THEN
+                    RAISE_APPLICATION_ERROR
+                    (
+                        -20001,
+                        'Attribute changed or unavailable. Reopen the dialog.'
+                    );
+                END IF;
+
+            WHEN 'D' THEN
+                DELETE FROM ops.adre_inv_item_attribute
+                 WHERE item_attribute_id = p_item_attribute_id
+                   AND item_section_id = p_item_section_id
+                   AND record_version_number = p_record_version_number;
+
+                IF SQL%ROWCOUNT = 0 THEN
+                    RAISE_APPLICATION_ERROR
+                    (
+                        -20003,
+                        'Attribute changed or unavailable. Reopen the dialog.'
+                    );
+                END IF;
+        END CASE;
+    END p_save_section_attribute;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_load_attribute_metadata
+    -- Purpose: Load the active attribute display name and data type for the
+    --          MASTER attribute form.
+    -- Input Parameters:
+    --   p_item_attribute_id NUMBER - OPS attribute identifier.
+    -- Input/Output Parameters:
+    --   x_attribute_name VARCHAR2 - Form display name.
+    --   x_attribute_data_type VARCHAR2 - Form data type.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_load_attribute_metadata
+    (
+        p_item_attribute_id     IN     ops.adre_inv_item_attribute.item_attribute_id%TYPE,
+        x_attribute_name        IN OUT ops.adre_inv_item_attribute.attribute_name%TYPE,
+        x_attribute_data_type   IN OUT ops.adre_inv_item_attribute.attribute_data_type%TYPE
+    )
+    IS
+    BEGIN
+        IF p_item_attribute_id IS NOT NULL THEN
+            SELECT attribute_name,
+                   attribute_data_type
+              INTO x_attribute_name,
+                   x_attribute_data_type
+              FROM ops.adre_inv_item_attribute
+             WHERE item_attribute_id = p_item_attribute_id
+               AND active_flag = 'Y';
+        END IF;
+    END p_load_attribute_metadata;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_prepare_master_category
+    -- Purpose: Resolve an EBS category for a draft MASTER request and prepare
+    --          the values passed to the existing form DML process.
+    -- Input Parameters:
+    --   p_item_category_id NUMBER - Existing category row, if any.
+    --   p_category_set_id NUMBER - EBS category set identifier.
+    --   p_category_value VARCHAR2 - Selected category value.
+    --   p_request_org_id NUMBER - MASTER request organization identifier.
+    --   p_app_user VARCHAR2 - APEX actor name.
+    -- Input/Output Parameters:
+    --   x_record_version_number NUMBER - Form row version.
+    --   x_created_by VARCHAR2 - Creator for a new row.
+    --   x_ebs_category_id NUMBER - Resolved category identifier.
+    --   x_assignment_status VARCHAR2 - Draft assignment status.
+    --   x_last_updated_by VARCHAR2 - Last updating actor.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_prepare_master_category
+    (
+        p_item_category_id       IN     ops.adre_inv_item_category.item_category_id%TYPE,
+        p_category_set_id        IN     ops.adre_inv_item_category.ebs_category_set_id%TYPE,
+        p_category_value         IN     ops.adre_inv_item_category.category_value%TYPE,
+        p_request_org_id         IN     ops.adre_inv_item_request_org.request_org_id%TYPE,
+        p_app_user               IN     ops.adre_inv_item_category.last_updated_by%TYPE,
+        x_record_version_number  IN OUT ops.adre_inv_item_category.record_version_number%TYPE,
+        x_created_by             IN OUT ops.adre_inv_item_category.created_by%TYPE,
+        x_ebs_category_id        IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        x_assignment_status      IN OUT ops.adre_inv_item_category.assignment_status%TYPE,
+        x_last_updated_by        IN OUT ops.adre_inv_item_category.last_updated_by%TYPE
+    )
+    IS
+    BEGIN
+        IF p_item_category_id IS NULL THEN
+            x_record_version_number := 1;
+
+            x_created_by := p_app_user;
+        ELSE
+            x_record_version_number := NVL(x_record_version_number, 0) + 1;
+        END IF;
+
+        SELECT cat.category_id
+          INTO x_ebs_category_id
+          FROM apps.mtl_categories_kfv cat,
+               apps.mtl_category_sets_b cat_set,
+               ops.adre_inv_item_request_org reqorg,
+               ops.adre_inv_item_request req
+         WHERE cat_set.category_set_id = p_category_set_id
+           AND cat_set.control_level = 1
+           AND cat.concatenated_segments = p_category_value
+           AND reqorg.request_org_id = p_request_org_id
+           AND reqorg.organization_role = 'MASTER'
+           AND req.item_request_id = reqorg.item_request_id
+           AND req.request_status = 'DRAFT'
+           AND (
+                   (
+                       cat_set.validate_flag = 'Y'
+                       AND EXISTS
+                       (
+                           SELECT 1
+                             FROM apps.mtl_category_set_valid_cats valid_cat
+                            WHERE valid_cat.category_set_id = cat_set.category_set_id
+                              AND valid_cat.category_id = cat.category_id
+                       )
+                   )
+                   OR
+                   (
+                       cat_set.validate_flag = 'N'
+                       AND cat.structure_id = cat_set.structure_id
+                   )
+               );
+
+        x_assignment_status := 'DRAFT';
+
+        x_last_updated_by := p_app_user;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR
+            (
+                -20001,
+                'The selected category is not valid for this MASTER request.'
+            );
+
+        WHEN TOO_MANY_ROWS THEN
+            RAISE_APPLICATION_ERROR
+            (
+                -20002,
+                'The category value matches more than one EBS category.'
+            );
+    END p_prepare_master_category;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_prepare_target_category
+    -- Purpose: Validate a draft TARGET category assignment and prepare the
+    --          category and audit values for the existing form DML process.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Item request identifier.
+    --   p_request_org_id NUMBER - TARGET request organization identifier.
+    --   p_category_set_id NUMBER - EBS category set identifier.
+    --   p_item_category_id NUMBER - Existing category row, if any.
+    --   p_category_value VARCHAR2 - Selected category value.
+    --   p_app_user VARCHAR2 - APEX actor name.
+    -- Input/Output Parameters:
+    --   x_ebs_category_id NUMBER - Resolved category identifier.
+    --   x_assignment_status VARCHAR2 - Draft assignment status.
+    --   x_last_updated_by VARCHAR2 - Last updating actor.
+    --   x_last_update_date VARCHAR2 - Formatted update timestamp.
+    --   x_created_by VARCHAR2 - Creator for a new row.
+    --   x_creation_date VARCHAR2 - Formatted creation timestamp.
+    --   x_record_version_number NUMBER - Form row version.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_prepare_target_category
+    (
+        p_item_request_id        IN     ops.adre_inv_item_request.item_request_id%TYPE,
+        p_request_org_id         IN     ops.adre_inv_item_request_org.request_org_id%TYPE,
+        p_category_set_id        IN     ops.adre_inv_item_category.ebs_category_set_id%TYPE,
+        p_item_category_id       IN     ops.adre_inv_item_category.item_category_id%TYPE,
+        p_category_value         IN     ops.adre_inv_item_category.category_value%TYPE,
+        p_app_user               IN     ops.adre_inv_item_category.last_updated_by%TYPE,
+        x_ebs_category_id        IN OUT ops.adre_inv_item_category.ebs_category_id%TYPE,
+        x_assignment_status      IN OUT ops.adre_inv_item_category.assignment_status%TYPE,
+        x_last_updated_by        IN OUT ops.adre_inv_item_category.last_updated_by%TYPE,
+        x_last_update_date       IN OUT VARCHAR2,
+        x_created_by             IN OUT ops.adre_inv_item_category.created_by%TYPE,
+        x_creation_date          IN OUT VARCHAR2,
+        x_record_version_number  IN OUT ops.adre_inv_item_category.record_version_number%TYPE
+    )
+    IS
+        l_count NUMBER;
+    BEGIN
+        SELECT COUNT(*)
+          INTO l_count
+          FROM ops.adre_inv_item_request req,
+               ops.adre_inv_item_request_org reqorg,
+               ops.adre_inv_item_org_cat_set cfg,
+               apps.mtl_category_sets_b catset
+         WHERE req.item_request_id = p_item_request_id
+           AND req.request_status = 'DRAFT'
+           AND reqorg.item_request_id = req.item_request_id
+           AND reqorg.request_org_id = p_request_org_id
+           AND reqorg.organization_role = 'TARGET'
+           AND cfg.ebs_organization_id = reqorg.ebs_organization_id
+           AND cfg.ebs_category_set_id = p_category_set_id
+           AND cfg.active_flag = 'Y'
+           AND catset.category_set_id = cfg.ebs_category_set_id
+           AND catset.control_level = 2;
+
+        IF l_count <> 1 THEN
+            RAISE_APPLICATION_ERROR
+            (
+                -20001,
+                'The selected category set is not available for this draft TARGET organization.'
+            );
+        END IF;
+
+        IF p_item_category_id IS NOT NULL THEN
+            SELECT COUNT(*)
+              INTO l_count
+              FROM ops.adre_inv_item_category cat
+             WHERE cat.item_category_id = p_item_category_id
+               AND cat.request_org_id = p_request_org_id
+               AND cat.ebs_category_set_id = p_category_set_id;
+
+            IF l_count <> 1 THEN
+                RAISE_APPLICATION_ERROR
+                (
+                    -20002,
+                    'The category row does not belong to the selected TARGET organization and category set.'
+                );
+            END IF;
+        END IF;
+
+        SELECT cat.category_id
+          INTO x_ebs_category_id
+          FROM apps.mtl_categories_kfv cat,
+               apps.mtl_category_sets_b catset
+         WHERE catset.category_set_id = p_category_set_id
+           AND catset.control_level = 2
+           AND cat.concatenated_segments = p_category_value
+           AND (
+                   (
+                       catset.validate_flag = 'Y'
+                       AND EXISTS
+                       (
+                           SELECT 1
+                             FROM apps.mtl_category_set_valid_cats valid_cat
+                            WHERE valid_cat.category_set_id = catset.category_set_id
+                              AND valid_cat.category_id = cat.category_id
+                       )
+                   )
+                   OR
+                   (
+                       catset.validate_flag = 'N'
+                       AND cat.structure_id = catset.structure_id
+                   )
+               );
+
+        x_assignment_status := 'DRAFT';
+
+        x_last_updated_by := p_app_user;
+
+        x_last_update_date := TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS');
+
+        IF p_item_category_id IS NULL THEN
+            x_created_by := p_app_user;
+
+            x_creation_date := TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS');
+
+            x_record_version_number := 1;
+        ELSE
+            x_record_version_number := NVL(x_record_version_number, 0) + 1;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20003, 'Select a valid category value.');
+
+        WHEN TOO_MANY_ROWS THEN
+            RAISE_APPLICATION_ERROR(-20004, 'The selected category value is ambiguous in EBS.');
+    END p_prepare_target_category;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_remove_target_organization
+    -- Purpose: Remove an unprocessed draft TARGET assignment and its staged
+    --          dependent records if no API history references that TARGET.
+    -- Input Parameters:
+    --   p_item_request_id NUMBER - Item request identifier.
+    --   p_request_org_id NUMBER - TARGET request organization identifier.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_remove_target_organization
+    (
+        p_item_request_id  IN ops.adre_inv_item_request.item_request_id%TYPE,
+        p_request_org_id   IN ops.adre_inv_item_request_org.request_org_id%TYPE
+    )
+    IS
+        l_request_org_id ops.adre_inv_item_request_org.request_org_id%TYPE;
+        l_api_log_count  NUMBER;
+    BEGIN
+        SELECT reqorg.request_org_id
+          INTO l_request_org_id
+          FROM ops.adre_inv_item_request req,
+               ops.adre_inv_item_request_org reqorg
+         WHERE req.item_request_id = p_item_request_id
+           AND req.request_status = 'DRAFT'
+           AND reqorg.item_request_id = req.item_request_id
+           AND reqorg.request_org_id = p_request_org_id
+           AND reqorg.organization_role = 'TARGET'
+           AND reqorg.assignment_status = 'DRAFT'
+           AND reqorg.ebs_inventory_item_id IS NULL
+         FOR UPDATE OF reqorg.assignment_status;
+
+        SELECT COUNT(*)
+          INTO l_api_log_count
+          FROM ops.adre_inv_item_api_log apilog
+         WHERE apilog.request_org_id = l_request_org_id;
+
+        IF l_api_log_count > 0 THEN
+            RAISE_APPLICATION_ERROR
+            (
+                -20001,
+                'This target organization has API history and cannot be removed.'
+            );
+        END IF;
+
+        DELETE FROM ops.adre_inv_item_bom_comp comp
+         WHERE comp.item_bom_id IN
+               (
+                   SELECT bom.item_bom_id
+                     FROM ops.adre_inv_item_bom bom
+                    WHERE bom.request_org_id = l_request_org_id
+               );
+
+        DELETE FROM ops.adre_inv_item_bom bom
+         WHERE bom.request_org_id = l_request_org_id;
+
+        DELETE FROM ops.adre_inv_item_attr_value val
+         WHERE val.request_org_id = l_request_org_id;
+
+        DELETE FROM ops.adre_inv_item_category cat
+         WHERE cat.request_org_id = l_request_org_id;
+
+        DELETE FROM ops.adre_inv_item_document doc
+         WHERE doc.request_org_id = l_request_org_id;
+
+        DELETE FROM ops.adre_inv_item_request_org reqorg
+         WHERE reqorg.request_org_id = l_request_org_id
+           AND reqorg.item_request_id = p_item_request_id
+           AND reqorg.organization_role = 'TARGET';
+
+        IF SQL%ROWCOUNT <> 1 THEN
+            RAISE_APPLICATION_ERROR(-20002, 'The target organization could not be removed.');
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR
+            (
+                -20003,
+                'This target assignment is no longer an eligible draft.'
+            );
+    END p_remove_target_organization;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_save_approval_decision
+    -- Purpose: Store the status, actor, timestamp, and comments for an
+    --          Engineering or Finance approval decision.
+    -- Input Parameters:
+    --   p_item_approval_id NUMBER - Approval row identifier.
+    --   p_request VARCHAR2 - APEX button request.
+    --   p_decision_comments CLOB - Entered approval comments.
+    --   p_app_user VARCHAR2 - APEX actor name.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_save_approval_decision
+    (
+        p_item_approval_id  IN ops.adre_inv_item_approval.item_approval_id%TYPE,
+        p_request           IN VARCHAR2,
+        p_decision_comments IN ops.adre_inv_item_approval.decision_comments%TYPE,
+        p_app_user          IN ops.adre_inv_item_approval.decision_by%TYPE
+    )
+    IS
+        l_status VARCHAR2(30);
+    BEGIN
+        l_status := CASE p_request
+                        WHEN 'APPROVE' THEN 'APPROVED'
+                        WHEN 'REJECT' THEN 'REJECTED'
+                        WHEN 'REQUEST_CHANGES' THEN 'CHANGES_REQUESTED'
+                    END;
+
+        UPDATE ops.adre_inv_item_approval
+           SET approval_status = l_status,
+               decision_by = p_app_user,
+               decision_date = SYSDATE,
+               decision_comments = p_decision_comments,
+               last_updated_by = p_app_user,
+               last_update_date = SYSDATE,
+               record_version_number = NVL(record_version_number, 0) + 1
+         WHERE item_approval_id = p_item_approval_id;
+    END p_save_approval_decision;
+
+    -- ---------------------------------------------------------------------
+    -- Procedure: p_load_approval
+    -- Purpose: Load the approval and request details used by the current
+    --          approval page, preserving existing values when no row exists.
+    -- Input Parameters:
+    --   p_item_approval_id NUMBER - Approval row identifier.
+    -- Input/Output Parameters:
+    --   x_item_request_id NUMBER - Parent item request identifier.
+    --   x_item_number VARCHAR2 - Request item number.
+    --   x_approval_type VARCHAR2 - Engineering or Finance type.
+    --   x_approval_status VARCHAR2 - Current approval status.
+    --   x_decision_comments CLOB - Saved approval comments.
+    -- ---------------------------------------------------------------------
+    PROCEDURE p_load_approval
+    (
+        p_item_approval_id  IN     ops.adre_inv_item_approval.item_approval_id%TYPE,
+        x_item_request_id   IN OUT ops.adre_inv_item_request.item_request_id%TYPE,
+        x_item_number       IN OUT ops.adre_inv_item_request.item_number%TYPE,
+        x_approval_type     IN OUT ops.adre_inv_item_approval.approval_type%TYPE,
+        x_approval_status   IN OUT ops.adre_inv_item_approval.approval_status%TYPE,
+        x_decision_comments IN OUT ops.adre_inv_item_approval.decision_comments%TYPE
+    )
+    IS
+    BEGIN
+        SELECT approval.item_request_id,
+               req.item_number,
+               approval.approval_type,
+               approval.approval_status,
+               approval.decision_comments
+          INTO x_item_request_id,
+               x_item_number,
+               x_approval_type,
+               x_approval_status,
+               x_decision_comments
+          FROM ops.adre_inv_item_approval approval,
+               ops.adre_inv_item_request req
+         WHERE approval.item_approval_id = p_item_approval_id
+           AND req.item_request_id = approval.item_request_id;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            NULL;
+    END p_load_approval;
 
 END adre_create_inv_item;
 /

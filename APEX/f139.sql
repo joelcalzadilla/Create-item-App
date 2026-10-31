@@ -33,23 +33,23 @@ prompt APPLICATION 139 - ADRE Inventory Item Creation
 -- Application Export:
 --   Application:     139
 --   Name:            ADRE Inventory Item Creation
---   Date and Time:   08:56 Tuesday October 27, 2026
+--   Date and Time:   10:24 Saturday October 31, 2026
 --   Exported By:     JCALZADILLA
 --   Flashback:       0
 --   Export Type:     Application Export
---     Pages:                     22
---       Items:                  116
---       Processes:               43
---       Regions:                 60
---       Buttons:                 31
---       Dynamic Actions:         12
+--     Pages:                     23
+--       Items:                  119
+--       Processes:               44
+--       Regions:                 63
+--       Buttons:                 32
+--       Dynamic Actions:         16
 --     Shared Components:
 --       Logic:
 --         Build Options:          1
 --       Navigation:
 --         Lists:                  3
---         Breadcrumbs:            1
---           Entries:              3
+--         Breadcrumbs:            3
+--           Entries:              7
 --       Security:
 --         Authentication:         2
 --         Authorization:          1
@@ -70,7 +70,7 @@ prompt APPLICATION 139 - ADRE Inventory Item Creation
 --       Globalization:
 --       Reports:
 --       E-Mail:
---     Supporting Objects:  Included (auto-install)
+--     Supporting Objects:  Included
 --   Version:         23.2.6
 --   Instance ID:     199026579984377
 --
@@ -117,7 +117,7 @@ wwv_imp_workspace.create_flow(
 ,p_substitution_string_01=>'APP_NAME'
 ,p_substitution_value_01=>'ADRE Inventory Item Creation'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261027085516'
+,p_last_upd_yyyymmddhh24miss=>'20261031102405'
 ,p_file_prefix => nvl(wwv_flow_application_install.get_static_app_file_prefix,'')
 ,p_files_version=>6
 ,p_print_server_type=>'NATIVE'
@@ -309,11 +309,10 @@ wwv_flow_imp_shared.create_list_item(
 );
 wwv_flow_imp_shared.create_list_item(
  p_id=>wwv_flow_imp.id(1034013192594846700)
-,p_list_item_display_sequence=>10
+,p_list_item_display_sequence=>60
 ,p_list_item_link_text=>'Configuration'
-,p_list_item_link_target=>'f?p=&APP_ID.:90:&APP_SESSION.::&DEBUG.:::'
+,p_list_item_link_target=>'f?p=&APP_ID.:90:&SESSION.::&DEBUG.::::'
 ,p_list_item_icon=>'fa-cog'
-,p_parent_list_item_id=>wwv_flow_imp.id(1034013192594846737)
 ,p_list_item_current_type=>'COLON_DELIMITED_PAGE_LIST'
 ,p_list_item_current_for_pages=>'90'
 );
@@ -359,6 +358,35 @@ end;
 prompt --application/shared_components/navigation/listentry
 begin
 null;
+end;
+/
+prompt --application/shared_components/files/adre_dashboard_kpis_css
+begin
+wwv_flow_imp.g_varchar2_table := wwv_flow_imp.empty_varchar2_table;
+wwv_flow_imp.g_varchar2_table(1) := '2F2A20416468657369766573205265736561726368207C2044617368626F6172642052657175657374204B504973207C20323032362D31302D3239202A2F0A2F2A204B6565702066697665204B5049206361726473206F6E206F6E6520726F7720776865';
+wwv_flow_imp.g_varchar2_table(2) := '6E20746865206465736B746F702076696577706F7274206973207769646520656E6F7567682E202A2F0A406D6564696120286D696E2D77696474683A2031343030707829207B0A202020202364617368626F6172642D6B706973202E612D436172645669';
+wwv_flow_imp.g_varchar2_table(3) := '65772D6974656D732D2D67726964207B0A2020202020202020677269642D74656D706C6174652D636F6C756D6E733A2072657065617428352C206D696E6D617828302C2031667229292021696D706F7274616E743B0A202020207D0A7D0A';
+wwv_flow_imp_shared.create_app_static_file(
+ p_id=>wwv_flow_imp.id(15074210677999)
+,p_file_name=>'ADRE_DASHBOARD_KPIS.css'
+,p_mime_type=>'text/css'
+,p_file_charset=>'utf-8'
+,p_file_content => wwv_flow_imp.varchar2_to_blob(wwv_flow_imp.g_varchar2_table)
+);
+end;
+/
+prompt --application/shared_components/files/adre_dashboard_kpis_min_css
+begin
+wwv_flow_imp.g_varchar2_table := wwv_flow_imp.empty_varchar2_table;
+wwv_flow_imp.g_varchar2_table(1) := '406D6564696120286D696E2D77696474683A313430307078297B2364617368626F6172642D6B706973202E612D43617264566965772D6974656D732D2D677269647B677269642D74656D706C6174652D636F6C756D6E733A72657065617428352C6D696E';
+wwv_flow_imp.g_varchar2_table(2) := '6D617828302C316672292921696D706F7274616E747D7D';
+wwv_flow_imp_shared.create_app_static_file(
+ p_id=>wwv_flow_imp.id(17306677698970)
+,p_file_name=>'ADRE_DASHBOARD_KPIS.min.css'
+,p_mime_type=>'text/css'
+,p_file_charset=>'utf-8'
+,p_file_content => wwv_flow_imp.varchar2_to_blob(wwv_flow_imp.g_varchar2_table)
+);
 end;
 /
 prompt --application/shared_components/files/icons_app_icon_32_png
@@ -1153,6 +1181,48 @@ end;
 prompt --application/comments
 begin
 null;
+end;
+/
+prompt --application/shared_components/navigation/breadcrumbs/configuration_breadcrumb
+begin
+wwv_flow_imp_shared.create_menu(
+ p_id=>wwv_flow_imp.id(89905040093993)
+,p_name=>'Configuration Breadcrumb'
+);
+wwv_flow_imp_shared.create_menu_option(
+ p_id=>wwv_flow_imp.id(90464889105184)
+,p_short_name=>'Organizations per Item Type'
+,p_link=>'f?p=&APP_ID.:110:&SESSION.::&DEBUG.:::'
+,p_page_id=>110
+);
+wwv_flow_imp_shared.create_menu_option(
+ p_id=>wwv_flow_imp.id(90686851108979)
+,p_parent_id=>wwv_flow_imp.id(90464889105184)
+,p_short_name=>'Categories per Organization'
+,p_link=>'f?p=&APP_ID.:125:&SESSION.::&DEBUG.:::'
+,p_page_id=>125
+);
+end;
+/
+prompt --application/shared_components/navigation/breadcrumbs/itemtypeorg
+begin
+wwv_flow_imp_shared.create_menu(
+ p_id=>wwv_flow_imp.id(94001533224529)
+,p_name=>'ItemTypeOrg'
+);
+wwv_flow_imp_shared.create_menu_option(
+ p_id=>wwv_flow_imp.id(94198905230126)
+,p_short_name=>'Item Type'
+,p_link=>'f?p=&APP_ID.:90:&SESSION.::&DEBUG.:::'
+,p_page_id=>90
+);
+wwv_flow_imp_shared.create_menu_option(
+ p_id=>wwv_flow_imp.id(96862949320249)
+,p_parent_id=>wwv_flow_imp.id(94198905230126)
+,p_short_name=>'Org per Item Type'
+,p_link=>'f?p=&APP_ID.:110:&SESSION.::&DEBUG.:::'
+,p_page_id=>110
+);
 end;
 /
 prompt --application/shared_components/navigation/breadcrumbs/breadcrumb
@@ -18270,11 +18340,12 @@ wwv_flow_imp_page.create_page(
 ,p_alias=>'DASHBOARD'
 ,p_step_title=>'Dashboard'
 ,p_autocomplete_on_off=>'OFF'
+,p_css_file_urls=>'#APP_FILES#ADRE_DASHBOARD_KPIS.css'
 ,p_page_template_options=>'#DEFAULT#'
 ,p_protection_level=>'C'
 ,p_page_component_map=>'13'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20260928221654'
+,p_last_upd_yyyymmddhh24miss=>'20261029130243'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(1034013192594846437)
@@ -18284,6 +18355,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_component_template_options=>'#DEFAULT#:t-Cards--5cols:t-Cards--basic'
 ,p_plug_template=>wwv_flow_imp.id(1260710197212607767)
 ,p_plug_display_sequence=>20
+,p_plug_grid_column_span=>12
 ,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'SELECT ''My Draft Requests'' card_label,',
@@ -18939,7 +19011,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'23'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261024153244'
+,p_last_upd_yyyymmddhh24miss=>'20261030213543'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(171257042274047)
@@ -18964,7 +19036,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_plug_source_type=>'NATIVE_DISPLAY_SELECTOR'
 ,p_attribute_01=>'STANDARD'
 ,p_attribute_02=>'N'
-,p_attribute_03=>'USER'
+,p_attribute_03=>'SESSION'
 ,p_attribute_04=>'N'
 );
 wwv_flow_imp_page.create_page_plug(
@@ -19146,7 +19218,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_region_name=>'bom-panel'
 ,p_region_template_options=>'#DEFAULT#:t-Region--noPadding'
 ,p_plug_template=>wwv_flow_imp.id(1260710197212607767)
-,p_plug_display_sequence=>100
+,p_plug_display_sequence=>110
 ,p_include_in_reg_disp_sel_yn=>'Y'
 ,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
@@ -19295,7 +19367,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_region_name=>'review-panel'
 ,p_region_template_options=>'#DEFAULT#:t-Region--noPadding'
 ,p_plug_template=>wwv_flow_imp.id(1260710197212607767)
-,p_plug_display_sequence=>110
+,p_plug_display_sequence=>100
 ,p_include_in_reg_disp_sel_yn=>'Y'
 ,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
@@ -19828,7 +19900,7 @@ wwv_flow_imp_page.create_page_plug(
 '   AND attval.request_org_id(+) = reqorg.request_org_id',
 '   AND attval.item_attribute_id(+) = iteatt.item_attribute_id',
 '   AND (',
-'       req.request_status = ''DRAFT''',
+'       req.request_status IN (''DRAFT'', ''ERROR'')',
 '       OR attval.attribute_value IS NOT NULL',
 '   )'))
 ,p_plug_source_type=>'NATIVE_IG'
@@ -19982,20 +20054,52 @@ wwv_flow_imp_page.create_region_column(
 ,p_max_length=>4000
 ,p_lov_type=>'SQL_QUERY'
 ,p_lov_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'SELECT ''Y'' AS display_value,',
-'       ''Y'' AS return_value',
+'SELECT ''Y'' display_value,',
+'       ''Y'' return_value',
 '  FROM dual',
 ' WHERE :ATTRIBUTE_DATA_TYPE = ''YES_NO''',
 'UNION ALL',
-'SELECT ''N'' AS display_value,',
-'       ''N'' AS return_value',
+'SELECT ''N'' display_value,',
+'       ''N'' return_value',
 '  FROM dual',
 ' WHERE :ATTRIBUTE_DATA_TYPE = ''YES_NO''',
+'UNION ALL',
+'SELECT DISTINCT',
+'       CASE',
+'           WHEN UPPER(TRIM(att.default_value)) =',
+'                UPPER(TRIM(tmpl.report_user_value))',
+'           THEN att.default_value',
+'           ELSE tmpl.report_user_value',
+'       END display_value,',
+'       CASE',
+'           WHEN UPPER(TRIM(att.default_value)) =',
+'                UPPER(TRIM(tmpl.report_user_value))',
+'           THEN att.default_value',
+'           ELSE tmpl.report_user_value',
+'       END return_value',
+'  FROM ops.adre_inv_item_attribute att,',
+'       ops.adre_inv_item_template_rule rul,',
+'       apps.mtl_item_templ_attributes tmpl',
+' WHERE :ATTRIBUTE_DATA_TYPE = ''CHAR''',
+'   AND att.item_attribute_id = :ITEM_ATTRIBUTE_ID',
+'   AND att.attribute_code = ''PLANNING_METHOD''',
+'   AND rul.item_type_id = :ITEM_TYPE_ID',
+'   AND rul.active_flag = ''Y''',
+'   AND rul.rule_status = ''READY''',
+'   AND (rul.effective_start_date IS NULL',
+'        OR TRUNC(rul.effective_start_date) <= TRUNC(SYSDATE))',
+'   AND (rul.effective_end_date IS NULL',
+'        OR TRUNC(rul.effective_end_date) >= TRUNC(SYSDATE))',
+'   AND tmpl.template_id = rul.ebs_template_id',
+'   AND UPPER(TRIM(tmpl.attribute_name)) =',
+'       ''MTL_SYSTEM_ITEMS.MRP_PLANNING_CODE''',
+'   AND tmpl.enabled_flag = ''Y''',
+'   AND tmpl.report_user_value IS NOT NULL',
 ' ORDER BY display_value'))
 ,p_lov_display_extra=>true
 ,p_lov_display_null=>true
-,p_lov_cascade_parent_items=>'ATTRIBUTE_DATA_TYPE'
-,p_ajax_items_to_submit=>'ATTRIBUTE_DATA_TYPE'
+,p_lov_cascade_parent_items=>'ATTRIBUTE_DATA_TYPE,ITEM_TYPE_ID,ITEM_ATTRIBUTE_ID'
+,p_ajax_items_to_submit=>'ATTRIBUTE_DATA_TYPE,ITEM_TYPE_ID,ITEM_ATTRIBUTE_ID'
 ,p_ajax_optimize_refresh=>true
 ,p_filter_is_required=>false
 ,p_use_as_row_header=>false
@@ -20849,7 +20953,7 @@ wwv_flow_imp_page.create_ig_report_view(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(7478310114898)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>10
+,p_display_seq=>11
 ,p_column_id=>wwv_flow_imp.id(367024245063773)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20857,7 +20961,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(8387475114905)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>11
+,p_display_seq=>12
 ,p_column_id=>wwv_flow_imp.id(366860775063772)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20865,7 +20969,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(9245336114908)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>12
+,p_display_seq=>13
 ,p_column_id=>wwv_flow_imp.id(366758891063771)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20873,15 +20977,18 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(10218262114910)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>4
+,p_display_seq=>5
 ,p_column_id=>wwv_flow_imp.id(366667572063770)
 ,p_is_visible=>true
 ,p_is_frozen=>false
+,p_sort_order=>1
+,p_sort_direction=>'ASC'
+,p_sort_nulls=>'LAST'
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(11077910114913)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>5
+,p_display_seq=>6
 ,p_column_id=>wwv_flow_imp.id(366587369063769)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20889,23 +20996,26 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(26056479195390)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>0
+,p_display_seq=>1
 ,p_column_id=>wwv_flow_imp.id(366476005063768)
 ,p_is_visible=>true
-,p_is_frozen=>false
+,p_is_frozen=>true
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(37356005186799)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>1
+,p_display_seq=>2
 ,p_column_id=>wwv_flow_imp.id(113321877978859521)
 ,p_is_visible=>true
 ,p_is_frozen=>false
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(38176858186806)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>2
+,p_display_seq=>3
 ,p_column_id=>wwv_flow_imp.id(113321749565859520)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20913,7 +21023,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(39105100186809)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>3
+,p_display_seq=>4
 ,p_column_id=>wwv_flow_imp.id(113321630323859519)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20921,7 +21031,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(39981020186811)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>6
+,p_display_seq=>7
 ,p_column_id=>wwv_flow_imp.id(113321623171859518)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20929,7 +21039,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(40885831186813)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>7
+,p_display_seq=>8
 ,p_column_id=>wwv_flow_imp.id(113321465844859517)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20937,7 +21047,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(49959473186834)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>8
+,p_display_seq=>9
 ,p_column_id=>wwv_flow_imp.id(113320498488859507)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -20945,7 +21055,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(50819178186836)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
-,p_display_seq=>9
+,p_display_seq=>10
 ,p_column_id=>wwv_flow_imp.id(113320369183859506)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -21029,9 +21139,6 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_page_footer_alignment=>'CENTER'
 ,p_prn_border_color=>'#666666'
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_worksheet(
  p_id=>wwv_flow_imp.id(168496725274019)
 ,p_max_row_count=>'1000000'
@@ -21406,7 +21513,7 @@ wwv_flow_imp_page.create_worksheet_rpt(
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(172158877274056)
-,p_plug_name=>'Add Target Organization'
+,p_plug_name=>'Assign Organization'
 ,p_parent_plug_id=>wwv_flow_imp.id(1034013192594847811)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
 ,p_plug_template=>wwv_flow_imp.id(1260720086548607771)
@@ -21418,7 +21525,7 @@ wwv_flow_imp_page.create_page_plug(
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(14944735421632915)
-,p_plug_name=>unistr('&P20_SELECTED_TARGET_CODE. \00B7 Target Organization Details')
+,p_plug_name=>unistr('&P20_SELECTED_TARGET_CODE. \00B7 Organization Details')
 ,p_region_name=>'target-org-details'
 ,p_parent_plug_id=>wwv_flow_imp.id(1034013192594847811)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
@@ -21431,7 +21538,7 @@ wwv_flow_imp_page.create_page_plug(
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(92772300591423)
-,p_plug_name=>unistr('Attributes \00B7 Target ')
+,p_plug_name=>'Attributes'
 ,p_parent_plug_id=>wwv_flow_imp.id(14944735421632915)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody:margin-top-lg'
 ,p_component_template_options=>'#DEFAULT#'
@@ -21488,7 +21595,7 @@ wwv_flow_imp_page.create_page_plug(
 '   AND attval.request_org_id(+) = reqorg.request_org_id',
 '   AND attval.item_attribute_id(+) = iteatt.item_attribute_id',
 '  AND (',
-'       req.request_status = ''DRAFT''',
+'       req.request_status IN (''DRAFT'', ''ERROR'')',
 '    OR attval.attribute_value IS NOT NULL',
 '    OR typatt.required_flag = ''Y''',
 ')'))
@@ -21500,7 +21607,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_width=>11
 ,p_prn_height=>8.5
 ,p_prn_orientation=>'HORIZONTAL'
-,p_prn_page_header=>unistr('Attributes \00B7 Target ')
+,p_prn_page_header=>'Attributes'
 ,p_prn_page_header_font_color=>'#000000'
 ,p_prn_page_header_font_family=>'Helvetica'
 ,p_prn_page_header_font_weight=>'normal'
@@ -21920,6 +22027,9 @@ wwv_flow_imp_page.create_region_column(
 ,p_duplicate_value=>true
 ,p_include_in_export=>true
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_region_column(
  p_id=>wwv_flow_imp.id(94573931591441)
 ,p_name=>'VALUE_STATUS'
@@ -22025,6 +22135,7 @@ wwv_flow_imp_page.create_ig_report_view(
  p_id=>wwv_flow_imp.id(119808245713622)
 ,p_report_id=>wwv_flow_imp.id(119593152713622)
 ,p_view_type=>'GRID'
+,p_stretch_columns=>true
 ,p_srv_exclude_null_values=>false
 ,p_srv_only_display_columns=>true
 ,p_edit_mode=>false
@@ -22032,7 +22143,7 @@ wwv_flow_imp_page.create_ig_report_view(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(120259973713623)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>1
+,p_display_seq=>2
 ,p_column_id=>wwv_flow_imp.id(92946570591425)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22040,18 +22151,15 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(121183754713626)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>2
+,p_display_seq=>3
 ,p_column_id=>wwv_flow_imp.id(93049481591426)
 ,p_is_visible=>true
 ,p_is_frozen=>false
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(122078097713629)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>3
+,p_display_seq=>4
 ,p_column_id=>wwv_flow_imp.id(93145249591427)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22059,7 +22167,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(123017011713631)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>4
+,p_display_seq=>5
 ,p_column_id=>wwv_flow_imp.id(93247763591428)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22067,7 +22175,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(123883137713633)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>5
+,p_display_seq=>6
 ,p_column_id=>wwv_flow_imp.id(93383404591429)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22075,7 +22183,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(124811626713636)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>6
+,p_display_seq=>7
 ,p_column_id=>wwv_flow_imp.id(93531636591430)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22083,7 +22191,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(125739780713638)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>7
+,p_display_seq=>8
 ,p_column_id=>wwv_flow_imp.id(93563929591431)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22091,7 +22199,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(126550705713640)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>8
+,p_display_seq=>9
 ,p_column_id=>wwv_flow_imp.id(93726903591432)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22099,7 +22207,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(127446194713642)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>9
+,p_display_seq=>10
 ,p_column_id=>wwv_flow_imp.id(93754777591433)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22107,7 +22215,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(128369991713644)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>10
+,p_display_seq=>11
 ,p_column_id=>wwv_flow_imp.id(93902710591434)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22115,31 +22223,37 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(129329024713647)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>11
+,p_display_seq=>12
 ,p_column_id=>wwv_flow_imp.id(93959693591435)
 ,p_is_visible=>true
 ,p_is_frozen=>false
+,p_sort_order=>1
+,p_sort_direction=>'ASC'
+,p_sort_nulls=>'LAST'
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(130157086713649)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>12
+,p_display_seq=>13
 ,p_column_id=>wwv_flow_imp.id(94051895591436)
 ,p_is_visible=>true
 ,p_is_frozen=>false
+,p_sort_order=>2
+,p_sort_direction=>'ASC'
+,p_sort_nulls=>'LAST'
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(131057523713651)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>13
+,p_display_seq=>14
 ,p_column_id=>wwv_flow_imp.id(94210796591437)
-,p_is_visible=>true
+,p_is_visible=>false
 ,p_is_frozen=>false
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(131989459713654)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>14
+,p_display_seq=>15
 ,p_column_id=>wwv_flow_imp.id(94248296591438)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22147,7 +22261,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(132851571713656)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>15
+,p_display_seq=>16
 ,p_column_id=>wwv_flow_imp.id(94379539591439)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22155,7 +22269,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(133785913713658)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>16
+,p_display_seq=>17
 ,p_column_id=>wwv_flow_imp.id(94529248591440)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22163,7 +22277,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(134680935713661)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>17
+,p_display_seq=>18
 ,p_column_id=>wwv_flow_imp.id(94573931591441)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22171,7 +22285,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(135606719713663)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>18
+,p_display_seq=>19
 ,p_column_id=>wwv_flow_imp.id(94658089591442)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22179,14 +22293,14 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(136485764713665)
 ,p_view_id=>wwv_flow_imp.id(119808245713622)
-,p_display_seq=>0
+,p_display_seq=>1
 ,p_column_id=>wwv_flow_imp.id(94831902591443)
 ,p_is_visible=>true
-,p_is_frozen=>false
+,p_is_frozen=>true
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(364102472063744)
-,p_plug_name=>unistr('Categories \00B7 Target ')
+,p_plug_name=>'Categories '
 ,p_parent_plug_id=>wwv_flow_imp.id(14944735421632915)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody:margin-top-lg'
 ,p_component_template_options=>'#DEFAULT#'
@@ -22233,7 +22347,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_width=>11
 ,p_prn_height=>8.5
 ,p_prn_orientation=>'HORIZONTAL'
-,p_prn_page_header=>unistr('Categories \00B7 Target ')
+,p_prn_page_header=>'Categories '
 ,p_prn_page_header_font_color=>'#000000'
 ,p_prn_page_header_font_family=>'Helvetica'
 ,p_prn_page_header_font_weight=>'normal'
@@ -22596,6 +22710,7 @@ wwv_flow_imp_page.create_ig_report_view(
  p_id=>wwv_flow_imp.id(98516923594545)
 ,p_report_id=>wwv_flow_imp.id(98298802594545)
 ,p_view_type=>'GRID'
+,p_stretch_columns=>true
 ,p_srv_exclude_null_values=>false
 ,p_srv_only_display_columns=>true
 ,p_edit_mode=>false
@@ -22603,15 +22718,15 @@ wwv_flow_imp_page.create_ig_report_view(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(98996875594547)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>0
+,p_display_seq=>1
 ,p_column_id=>wwv_flow_imp.id(363856302063742)
 ,p_is_visible=>true
-,p_is_frozen=>false
+,p_is_frozen=>true
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(100266946594554)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>1
+,p_display_seq=>2
 ,p_column_id=>wwv_flow_imp.id(363607663063739)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22619,7 +22734,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(101224199594557)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>2
+,p_display_seq=>3
 ,p_column_id=>wwv_flow_imp.id(363531384063738)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22627,7 +22742,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(102118703594560)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>3
+,p_display_seq=>4
 ,p_column_id=>wwv_flow_imp.id(363381020063737)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22635,7 +22750,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(103044480594563)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>4
+,p_display_seq=>5
 ,p_column_id=>wwv_flow_imp.id(363323493063736)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22643,7 +22758,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(103862965594565)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>5
+,p_display_seq=>6
 ,p_column_id=>wwv_flow_imp.id(363213703063735)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22651,15 +22766,18 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(104763328594568)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>6
+,p_display_seq=>7
 ,p_column_id=>wwv_flow_imp.id(92107826591416)
 ,p_is_visible=>true
 ,p_is_frozen=>false
+,p_sort_order=>1
+,p_sort_direction=>'ASC'
+,p_sort_nulls=>'LAST'
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(105720110594571)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>7
+,p_display_seq=>8
 ,p_column_id=>wwv_flow_imp.id(92238355591417)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22667,7 +22785,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(106612419594574)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>8
+,p_display_seq=>9
 ,p_column_id=>wwv_flow_imp.id(92257227591418)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22675,7 +22793,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(107461907594576)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>9
+,p_display_seq=>10
 ,p_column_id=>wwv_flow_imp.id(92361682591419)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22683,7 +22801,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(108442881594579)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>10
+,p_display_seq=>11
 ,p_column_id=>wwv_flow_imp.id(92528907591420)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22691,7 +22809,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(109310296594582)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>11
+,p_display_seq=>12
 ,p_column_id=>wwv_flow_imp.id(92617205591421)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22699,7 +22817,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(110238777594585)
 ,p_view_id=>wwv_flow_imp.id(98516923594545)
-,p_display_seq=>12
+,p_display_seq=>13
 ,p_column_id=>wwv_flow_imp.id(92701069591422)
 ,p_is_visible=>true
 ,p_is_frozen=>false
@@ -22953,6 +23071,9 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_page_footer_alignment=>'CENTER'
 ,p_prn_border_color=>'#666666'
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_worksheet(
  p_id=>wwv_flow_imp.id(14946726020632935)
 ,p_max_row_count=>'1000000'
@@ -23049,9 +23170,6 @@ wwv_flow_imp_page.create_worksheet_column(
 ,p_heading_alignment=>'LEFT'
 ,p_use_as_row_header=>'N'
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_worksheet_column(
  p_id=>wwv_flow_imp.id(14947661404632944)
 ,p_db_column_name=>'UOM'
@@ -23093,7 +23211,7 @@ wwv_flow_imp_page.create_worksheet_rpt(
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(1034013192594846500)
-,p_plug_name=>'Assigned Target Organization'
+,p_plug_name=>'Assigned Organization'
 ,p_region_name=>'organizations-panel'
 ,p_parent_plug_id=>wwv_flow_imp.id(1034013192594847811)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
@@ -23124,7 +23242,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_width=>11
 ,p_prn_height=>8.5
 ,p_prn_orientation=>'HORIZONTAL'
-,p_prn_page_header=>'Assigned Target Organization'
+,p_prn_page_header=>'Assigned Organization'
 ,p_prn_page_header_font_color=>'#000000'
 ,p_prn_page_header_font_family=>'Helvetica'
 ,p_prn_page_header_font_weight=>'normal'
@@ -23240,7 +23358,7 @@ wwv_flow_imp_page.create_worksheet_rpt(
 );
 wwv_flow_imp_page.create_page_button(
  p_id=>wwv_flow_imp.id(1034013192594846486)
-,p_button_sequence=>20
+,p_button_sequence=>10
 ,p_button_plug_id=>wwv_flow_imp.id(1034013192594846545)
 ,p_button_name=>'SEND_TO_EBS'
 ,p_button_action=>'SUBMIT'
@@ -23252,6 +23370,29 @@ wwv_flow_imp_page.create_page_button(
 ,p_button_condition_type=>'ITEM_IS_NOT_NULL'
 ,p_icon_css_classes=>'fa-send'
 ,p_grid_new_row=>'Y'
+);
+wwv_flow_imp_page.create_page_button(
+ p_id=>wwv_flow_imp.id(4113197166649120)
+,p_button_sequence=>20
+,p_button_plug_id=>wwv_flow_imp.id(1034013192594846545)
+,p_button_name=>'DELETE_REQUEST'
+,p_button_action=>'SUBMIT'
+,p_button_template_options=>'#DEFAULT#:t-Button--large:t-Button--success'
+,p_button_template_id=>wwv_flow_imp.id(1260793194411607815)
+,p_button_is_hot=>'Y'
+,p_button_image_alt=>'Delete Request'
+,p_confirm_message=>'	Delete this request and all its associated data? This action cannot be undone.'
+,p_confirm_style=>'danger'
+,p_button_condition=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'SELECT 1',
+'  FROM dual',
+' WHERE apps.adre_create_inv_item.fnc_apex_request_can_delete(',
+'           :P20_ITEM_REQUEST_ID',
+'       ) = ''Y'''))
+,p_button_condition_type=>'EXISTS'
+,p_icon_css_classes=>'fa-send'
+,p_grid_new_row=>'N'
+,p_grid_new_column=>'Y'
 );
 wwv_flow_imp_page.create_page_button(
  p_id=>wwv_flow_imp.id(172374037274058)
@@ -23294,6 +23435,23 @@ wwv_flow_imp_page.create_page_button(
 ,p_button_condition_type=>'ITEM_IS_NOT_NULL'
 ,p_icon_css_classes=>'fa-times'
 );
+wwv_flow_imp_page.create_page_branch(
+ p_id=>wwv_flow_imp.id(4112905955649117)
+,p_branch_name=>'GO_TO_ORGANIZATIONS_AFTER_SAVE'
+,p_branch_action=>'f?p=&APP_ID.:20:&SESSION.:OPEN_ORGANIZATIONS:&DEBUG.::P20_ITEM_REQUEST_ID:&P20_ITEM_REQUEST_ID.'
+,p_branch_point=>'AFTER_PROCESSING'
+,p_branch_type=>'REDIRECT_URL'
+,p_branch_when_button_id=>wwv_flow_imp.id(1034013192594846485)
+,p_branch_sequence=>10
+);
+wwv_flow_imp_page.create_page_branch(
+ p_id=>wwv_flow_imp.id(4112180519649110)
+,p_branch_action=>'f?p=&APP_ID.:20:&SESSION.:EBS_RESULT:&DEBUG.::P20_ITEM_REQUEST_ID:&P20_ITEM_REQUEST_ID.&success_msg=#SUCCESS_MSG#'
+,p_branch_point=>'AFTER_PROCESSING'
+,p_branch_type=>'REDIRECT_URL'
+,p_branch_when_button_id=>wwv_flow_imp.id(1034013192594846486)
+,p_branch_sequence=>20
+);
 wwv_flow_imp_page.create_page_item(
  p_id=>wwv_flow_imp.id(172261700274057)
 ,p_name=>'P20_TARGET_ORG_ID'
@@ -23326,6 +23484,30 @@ wwv_flow_imp_page.create_page_item(
 ,p_lov_display_extra=>'YES'
 ,p_attribute_01=>'NONE'
 ,p_attribute_02=>'N'
+);
+wwv_flow_imp_page.create_page_item(
+ p_id=>wwv_flow_imp.id(4112343342649111)
+,p_name=>'P20_EBS_ERROR'
+,p_item_sequence=>120
+,p_use_cache_before_default=>'NO'
+,p_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'SELECT',
+'    CASE',
+'        WHEN req.api_return_status IN (''E'', ''U'') THEN',
+'            ''Oracle EBS processing returned status '' ||',
+'            req.api_return_status || '': '' ||',
+'            NVL(',
+'                DBMS_LOB.SUBSTR(req.api_message_text, 3000, 1),',
+'                ''No details were returned.''',
+'            )',
+'    END AS ebs_error',
+'FROM',
+'    ops.adre_inv_item_request req',
+'WHERE',
+'    req.item_request_id = :P20_ITEM_REQUEST_ID'))
+,p_source_type=>'QUERY'
+,p_display_as=>'NATIVE_HIDDEN'
+,p_attribute_01=>'Y'
 );
 wwv_flow_imp_page.create_page_item(
  p_id=>wwv_flow_imp.id(14944376901632911)
@@ -23655,6 +23837,16 @@ wwv_flow_imp_page.create_page_da_event(
 ,p_bind_event_type=>'apexafterclosedialog'
 );
 wwv_flow_imp_page.create_page_da_action(
+ p_id=>wwv_flow_imp.id(4112765518649115)
+,p_event_id=>wwv_flow_imp.id(15556124151804315)
+,p_event_result=>'TRUE'
+,p_action_sequence=>10
+,p_execute_on_page_init=>'N'
+,p_name=>'TA_OPEN_ORGANIZATIONS_AFTER_SAVE'
+,p_action=>'NATIVE_JAVASCRIPT_CODE'
+,p_attribute_01=>'apex.jQuery(''a[href$="organization_workspace"]'').first().trigger(''click'');'
+);
+wwv_flow_imp_page.create_page_da_action(
  p_id=>wwv_flow_imp.id(15556531946804317)
 ,p_event_id=>wwv_flow_imp.id(15556124151804315)
 ,p_event_result=>'TRUE'
@@ -23754,43 +23946,122 @@ wwv_flow_imp_page.create_page_da_action(
 ,p_affected_region_id=>wwv_flow_imp.id(1034013192594846500)
 ,p_build_option_id=>wwv_flow_imp.id(1260616098169607687)
 );
-wwv_flow_imp_page.create_page_process(
- p_id=>wwv_flow_imp.id(1034013192594846557)
-,p_process_sequence=>10
-,p_process_point=>'AFTER_SUBMIT'
-,p_process_type=>'NATIVE_PLSQL'
-,p_process_name=>'PROC_SAVE_DRAFT'
-,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'BEGIN',
-'    apps.adre_create_inv_item.p_save_draft_request',
-'    (',
-'    p_item_request_id => :P20_ITEM_REQUEST_ID,',
-'    p_request_number => :P20_REQUEST_NUMBER,',
-'    p_request_status => :P20_REQUEST_STATUS,',
-'    p_item_type_id => :P20_ITEM_TYPE_ID,',
-'    p_base_part_number => :P20_BASE_PART_NUMBER,',
-'    p_item_number => :P20_ITEM_NUMBER,',
-'    p_part_status => :P20_PART_STATUS,',
-'    p_item_description => :P20_ITEM_DESCRIPTION,',
-'    p_long_description => :P20_LONG_DESCRIPTION,',
-'    p_primary_uom_code => :P20_PRIMARY_UOM_CODE,',
-'    p_item_status_code => :P20_ITEM_STATUS_CODE,',
-'    p_initiator => :P20_INITIATOR,',
-'    p_requested_creation_date => :P20_REQUESTED_CREATION_DATE,',
-'    p_forecast_flag => :P20_FORECAST_FLAG,',
-'    p_app_user => :APP_USER',
-'    );',
-'  ',
-'  apex_application.g_print_success_message := ''Request saved.'';',
-'END;',
-'',
-' '))
-,p_process_clob_language=>'PLSQL'
-,p_error_display_location=>'INLINE_IN_NOTIFICATION'
-,p_process_when=>'SAVE_DRAFT'
-,p_process_when_type=>'REQUEST_EQUALS_CONDITION'
-,p_internal_uid=>88000000000000121
+wwv_flow_imp_page.create_page_da_event(
+ p_id=>wwv_flow_imp.id(4112777858649116)
+,p_name=>'DA_OPEN_ORGANIZATIONS_AFTER_SAVE'
+,p_event_sequence=>80
+,p_triggering_element_type=>'REGION'
+,p_triggering_region_id=>wwv_flow_imp.id(1034013192594846469)
+,p_bind_type=>'bind'
+,p_execution_type=>'IMMEDIATE'
+,p_bind_event_type=>'custom'
+,p_bind_event_type_custom=>'atabsactivate'
+,p_display_when_type=>'REQUEST_EQUALS_CONDITION'
+,p_display_when_cond=>'OPEN_ORGANIZATIONS'
 );
+wwv_flow_imp_page.create_page_da_action(
+ p_id=>wwv_flow_imp.id(4112657248649114)
+,p_event_id=>wwv_flow_imp.id(4112777858649116)
+,p_event_result=>'TRUE'
+,p_action_sequence=>10
+,p_execute_on_page_init=>'N'
+,p_name=>'TA_OPEN_ORGANIZATIONS_AFTER_SAVE'
+,p_action=>'NATIVE_JAVASCRIPT_CODE'
+,p_attribute_01=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'if (!window.adreOrgTabOpenedAfterSave) {',
+'    var region = document.getElementById("organization_workspace"),',
+'        tabs = this.data.active.tabSet$.aTabs("getTabs");',
+'',
+'    Object.keys(tabs).some(function (key) {',
+'        var tab = tabs[key],',
+'            panel = tab.panel$[0];',
+'',
+'        if (region && panel &&',
+'            (panel === region || panel.contains(region))) {',
+'            window.adreOrgTabOpenedAfterSave = true;',
+'            tab.makeActive();',
+'            return true;',
+'        }',
+'',
+'        return false;',
+'    });',
+'}'))
+);
+wwv_flow_imp_page.create_page_da_event(
+ p_id=>wwv_flow_imp.id(4112552483649113)
+,p_name=>'DA_REFRESH_EBS_LOG_ON_LOAD'
+,p_event_sequence=>90
+,p_bind_type=>'bind'
+,p_execution_type=>'IMMEDIATE'
+,p_bind_event_type=>'ready'
+);
+wwv_flow_imp_page.create_page_da_action(
+ p_id=>wwv_flow_imp.id(4112440160649112)
+,p_event_id=>wwv_flow_imp.id(4112552483649113)
+,p_event_result=>'TRUE'
+,p_action_sequence=>10
+,p_execute_on_page_init=>'N'
+,p_name=>'TA_REFRESH_EBS_LOG_ON_LOAD'
+,p_action=>'NATIVE_REFRESH'
+,p_affected_elements_type=>'REGION'
+,p_affected_region_id=>wwv_flow_imp.id(15488669797956846)
+);
+wwv_flow_imp_page.create_page_da_event(
+ p_id=>wwv_flow_imp.id(4112141616649109)
+,p_name=>'DA_OPEN_REVIEW_AFTER_EBS'
+,p_event_sequence=>100
+,p_triggering_element_type=>'REGION'
+,p_triggering_region_id=>wwv_flow_imp.id(1034013192594846469)
+,p_bind_type=>'bind'
+,p_execution_type=>'IMMEDIATE'
+,p_bind_event_type=>'custom'
+,p_bind_event_type_custom=>'atabsactivate'
+,p_display_when_type=>'REQUEST_EQUALS_CONDITION'
+,p_display_when_cond=>'EBS_RESULT'
+);
+wwv_flow_imp_page.create_page_da_action(
+ p_id=>wwv_flow_imp.id(4112073411649108)
+,p_event_id=>wwv_flow_imp.id(4112141616649109)
+,p_event_result=>'TRUE'
+,p_action_sequence=>10
+,p_execute_on_page_init=>'N'
+,p_name=>'TA_OPEN_REVIEW_AFTER_EBS'
+,p_action=>'NATIVE_JAVASCRIPT_CODE'
+,p_attribute_01=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'if (!window.adreReviewOpenedAfterEbs) {',
+'    var region = document.getElementById("review-panel"),',
+'        tabs = this.data.active.tabSet$.aTabs("getTabs");',
+'',
+'    Object.keys(tabs).some(function (key) {',
+'        var tab = tabs[key],',
+'            panel = tab.panel$[0];',
+'',
+'        if (region && panel &&',
+'            (panel === region || panel.contains(region))) {',
+'            window.adreReviewOpenedAfterEbs = true;',
+'            tab.makeActive();',
+'',
+'            var errorText = apex.item("P20_EBS_ERROR").getValue();',
+'',
+'            if (errorText) {',
+'                apex.message.showErrors([{',
+'                    type: "error",',
+'                    location: "page",',
+'                    message: errorText,',
+'                    unsafe: true',
+'                }]);',
+'            }',
+'',
+'            return true;',
+'        }',
+'',
+'        return false;',
+'    });',
+'}'))
+);
+end;
+/
+begin
 wwv_flow_imp_page.create_page_process(
  p_id=>wwv_flow_imp.id(1034013192594846558)
 ,p_process_sequence=>20
@@ -23799,76 +24070,20 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>'PROC_SEND_TO_EBS'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'DECLARE',
-'    l_request_status ops.adre_inv_item_request.request_status%TYPE;',
-'    l_return_status  VARCHAR2(10);',
-'    l_message        CLOB;',
+'    l_return_status VARCHAR2(10);',
+'    l_message CLOB;',
 'BEGIN',
-'    SELECT req.request_status',
-'    INTO   l_request_status',
-'    FROM   ops.adre_inv_item_request req',
-'    WHERE  req.item_request_id = :P20_ITEM_REQUEST_ID',
-'    FOR UPDATE;',
-'',
-'    IF l_request_status NOT IN (''DRAFT'', ''ERROR'') THEN',
-'    raise_application_error(',
-'        -20003,',
-'        ''Only a DRAFT or ERROR request can be submitted to EBS.''',
-'    );',
-'END IF;',
-'',
-'    UPDATE ops.adre_inv_item_attr_value attval',
-'       SET attval.value_status = ''READY''',
-'     WHERE attval.value_status = ''DRAFT''',
-'       AND EXISTS (',
-'           SELECT 1',
-'           FROM   ops.adre_inv_item_request_org reqorg',
-'           WHERE  reqorg.request_org_id = attval.request_org_id',
-'           AND    reqorg.item_request_id = :P20_ITEM_REQUEST_ID',
-'       );',
-'',
-'    UPDATE ops.adre_inv_item_category itecat',
-'       SET itecat.assignment_status = ''READY''',
-'     WHERE itecat.assignment_status = ''DRAFT''',
-'       AND EXISTS (',
-'           SELECT 1',
-'           FROM   ops.adre_inv_item_request_org reqorg',
-'           WHERE  reqorg.request_org_id = itecat.request_org_id',
-'           AND    reqorg.item_request_id = :P20_ITEM_REQUEST_ID',
-'       );',
-'',
-'    UPDATE ops.adre_inv_item_request_org reqorg',
-'       SET reqorg.assignment_status = ''READY''',
-'     WHERE reqorg.item_request_id = :P20_ITEM_REQUEST_ID',
-'       AND reqorg.assignment_status = ''DRAFT'';',
-'',
-'    UPDATE ops.adre_inv_item_request req',
-'       SET req.request_status  = ''READY'',',
-'           req.ebs_submit_date = SYSDATE,',
-'           req.last_updated_by = :APP_USER,',
-'           req.last_update_date = SYSDATE',
-'     WHERE req.item_request_id = :P20_ITEM_REQUEST_ID;',
-'',
-'    apps.adre_create_inv_item.pcd_process_request(',
-'        p_item_request_id    => :P20_ITEM_REQUEST_ID,',
-'        p_validate_only_flag => ''N'',',
-'        p_user_id            => NULL,',
-'        p_resp_id            => NULL,',
-'        p_resp_appl_id       => NULL,',
-'        p_commit_flag        => ''Y'',',
-'        x_return_status      => l_return_status,',
-'        x_message            => l_message',
+'    apps.adre_create_inv_item.p_apex_submit_request',
+'    (',
+'        p_item_request_id => :P20_ITEM_REQUEST_ID,',
+'        p_app_user        => :APP_USER,',
+'        x_return_status   => l_return_status,',
+'        x_message         => l_message',
 '    );',
 '',
 '    IF l_return_status = ''S'' THEN',
 '        apex_application.g_print_success_message :=',
 '            ''Oracle EBS processing completed successfully.'';',
-'    ELSE',
-'        raise_application_error(',
-'            -20002,',
-'            ''Oracle EBS processing returned status '' ||',
-'            NVL(l_return_status, ''NULL'') || '': '' ||',
-'            DBMS_LOB.SUBSTR(l_message, 3000, 1)',
-'        );',
 '    END IF;',
 'END;'))
 ,p_process_clob_language=>'PLSQL'
@@ -23910,106 +24125,24 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>unistr('Categories \00B7 MAS - IG - Save Interactive Grid Data')
 ,p_attribute_01=>'PLSQL_CODE'
 ,p_attribute_04=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'DECLARE',
-'    -- Adhesives Research | Joel Calzadilla | 2026-10-15',
-'    -- Page 20: Save MASTER categories; retain trigger auditing.',
-'    l_status VARCHAR2(30);',
-'    l_required VARCHAR2(1);',
-'    l_category NUMBER;',
-'    l_count NUMBER;',
 'BEGIN',
-'    IF NVL(:APEX$ROW_STATUS, ''?'') <> ''U'' THEN',
-'        RAISE_APPLICATION_ERROR(-20001, ''Only updates are allowed.'');',
-'    END IF;',
-'',
-'    SELECT request_status INTO l_status',
-'      FROM ops.adre_inv_item_request',
-'     WHERE item_request_id = :P20_ITEM_REQUEST_ID',
-'       FOR UPDATE;',
-'',
-'    IF NVL(l_status, ''?'') <> ''DRAFT'' THEN',
-'        RAISE_APPLICATION_ERROR(-20002, ''The request must be DRAFT.'');',
-'    END IF;',
-'',
-'    SELECT cfg.required_flag INTO l_required',
-'      FROM ops.adre_inv_item_request_org org,',
-'           ops.adre_inv_item_org_cat_set cfg,',
-'           apps.mtl_category_sets_b cs',
-'     WHERE org.request_org_id = :REQUEST_ORG_ID',
-'       AND org.item_request_id = :P20_ITEM_REQUEST_ID',
-'       AND org.organization_role = ''MASTER''',
-'       AND cfg.ebs_organization_id = org.ebs_organization_id',
-'       AND cfg.ebs_category_set_id = :EBS_CATEGORY_SET_ID',
-'       AND cfg.active_flag = ''Y''',
-'       AND cs.category_set_id = cfg.ebs_category_set_id',
-'       AND cs.control_level = 1;',
-'',
-'    :CATEGORY_VALUE := TRIM(:CATEGORY_VALUE);',
-'    IF :CATEGORY_VALUE IS NULL AND l_required = ''Y'' THEN',
-'        RAISE_APPLICATION_ERROR(-20003, ''A category value is required.'');',
-'    END IF;',
-'',
-'    IF :CATEGORY_VALUE IS NOT NULL THEN',
-'        SELECT cat.category_id INTO l_category',
-'          FROM apps.mtl_categories_kfv cat,',
-'               apps.mtl_category_sets_b cs',
-'         WHERE cs.category_set_id = :EBS_CATEGORY_SET_ID',
-'           AND cat.concatenated_segments = :CATEGORY_VALUE',
-'           AND ((cs.validate_flag = ''Y'' AND EXISTS (',
-'                   SELECT 1 FROM apps.mtl_category_set_valid_cats vc',
-'                    WHERE vc.category_set_id = cs.category_set_id',
-'                      AND vc.category_id = cat.category_id))',
-'                OR (cs.validate_flag = ''N''',
-'                    AND cat.structure_id = cs.structure_id));',
-'    END IF;',
-'',
-'    IF :ITEM_CATEGORY_ID IS NULL THEN',
-'        IF :CATEGORY_VALUE IS NULL THEN',
-'            RETURN;',
-'        END IF;',
-'        SELECT COUNT(*) INTO l_count',
-'          FROM ops.adre_inv_item_category',
-'         WHERE request_org_id = :REQUEST_ORG_ID',
-'           AND ebs_category_set_id = :EBS_CATEGORY_SET_ID;',
-'        IF l_count > 0 THEN',
-'            RAISE_APPLICATION_ERROR(-20004, ''Category already saved. Refresh.'');',
-'        END IF;',
-'        INSERT INTO ops.adre_inv_item_category',
-'            (request_org_id, ebs_category_set_id, ebs_category_id,',
-'             category_value, assignment_status)',
-'        VALUES (:REQUEST_ORG_ID, :EBS_CATEGORY_SET_ID, l_category,',
-'                :CATEGORY_VALUE, ''DRAFT'')',
-'        RETURNING item_category_id, ebs_category_id, record_version_number',
-'             INTO :ITEM_CATEGORY_ID, :EBS_CATEGORY_ID, :RECORD_VERSION_NUMBER;',
-'    ELSE',
-'        UPDATE ops.adre_inv_item_category',
-'           SET ebs_category_id = l_category,',
-'               category_value = :CATEGORY_VALUE,',
-'               assignment_status = ''DRAFT''',
-'         WHERE item_category_id = :ITEM_CATEGORY_ID',
-'           AND request_org_id = :REQUEST_ORG_ID',
-'           AND ebs_category_set_id = :EBS_CATEGORY_SET_ID',
-'           AND record_version_number = :RECORD_VERSION_NUMBER',
-'        RETURNING ebs_category_id, record_version_number',
-'             INTO :EBS_CATEGORY_ID, :RECORD_VERSION_NUMBER;',
-'        IF SQL%ROWCOUNT = 0 THEN',
-'            RAISE_APPLICATION_ERROR(-20005, ''Category changed. Refresh.'');',
-'        END IF;',
-'    END IF;',
-'EXCEPTION',
-'    WHEN NO_DATA_FOUND THEN',
-'        RAISE_APPLICATION_ERROR(-20006, ''Invalid request or category.'');',
-'    WHEN TOO_MANY_ROWS THEN',
-'        RAISE_APPLICATION_ERROR(-20007, ''Multiple matching records found.'');',
+'    apps.adre_create_inv_item.p_save_master_category',
+'    (',
+'        p_item_request_id       => :P20_ITEM_REQUEST_ID,',
+'        p_request_org_id        => :REQUEST_ORG_ID,',
+'        p_ebs_category_set_id   => :EBS_CATEGORY_SET_ID,',
+'        p_apex_row_status       => :APEX$ROW_STATUS,',
+'        p_category_value        => :CATEGORY_VALUE,',
+'        p_item_category_id      => :ITEM_CATEGORY_ID,',
+'        p_ebs_category_id       => :EBS_CATEGORY_ID,',
+'        p_record_version_number => :RECORD_VERSION_NUMBER',
+'    );',
 'END;'))
 ,p_attribute_05=>'N'
 ,p_attribute_06=>'N'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
 ,p_internal_uid=>344932386645144919
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_page_process(
  p_id=>wwv_flow_imp.id(364212963063745)
 ,p_process_sequence=>50
@@ -24019,102 +24152,18 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>unistr('Attributes \00B7 MAS - IG - Save Interactive Grid Data')
 ,p_attribute_01=>'PLSQL_CODE'
 ,p_attribute_04=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'DECLARE',
-'    -- Adhesives Research | Joel Calzadilla | 2026-10-15',
-'    -- Page 20: Save MASTER attributes; retain trigger auditing.',
-'    s VARCHAR2(30);',
-'    t VARCHAR2(30);',
-'    r VARCHAR2(1);',
-'    n NUMBER;',
-'    d DATE;',
-'    v ops.adre_inv_item_attr_value.attribute_value%TYPE;',
 'BEGIN',
-'    IF NVL(:APEX$ROW_STATUS,''?'') <> ''U'' THEN',
-'        RAISE_APPLICATION_ERROR(-20001,''Only updates are allowed.'');',
-'    END IF;',
-'    SELECT request_status INTO s',
-'      FROM ops.adre_inv_item_request',
-'     WHERE item_request_id = :P20_ITEM_REQUEST_ID FOR UPDATE;',
-'    IF NVL(s,''?'') <> ''DRAFT'' THEN',
-'        RAISE_APPLICATION_ERROR(-20002,''The request must be DRAFT.'');',
-'    END IF;',
-'    SELECT a.attribute_data_type, NVL(ta.required_flag,a.required_flag)',
-'      INTO t,r',
-'      FROM ops.adre_inv_item_request q,',
-'           ops.adre_inv_item_request_org o,',
-'           ops.adre_inv_item_type_attr ta,',
-'           ops.adre_inv_item_attribute a',
-'     WHERE q.item_request_id = :P20_ITEM_REQUEST_ID',
-'       AND o.item_request_id = q.item_request_id',
-'       AND o.request_org_id = :REQUEST_ORG_ID',
-'       AND o.organization_role = ''MASTER''',
-'       AND ta.item_type_id = q.item_type_id',
-'       AND ta.item_type_attr_id = :ITEM_TYPE_ATTR_ID',
-'       AND ta.active_flag = ''Y''',
-'       AND ta.organization_scope IN (''MASTER'',''BOTH'')',
-'       AND a.item_attribute_id = ta.item_attribute_id',
-'       AND a.item_attribute_id = :ITEM_ATTRIBUTE_ID',
-'       AND a.active_flag = ''Y'';',
-'',
-'    v := TRIM(:ATTRIBUTE_VALUE);',
-'    IF v IS NULL AND r = ''Y'' THEN',
-'        RAISE_APPLICATION_ERROR(-20003,''An attribute value is required.'');',
-'    END IF;',
-'    IF t NOT IN (''CHAR'',''NUMBER'',''DATE'',''YES_NO'') OR t IS NULL THEN',
-'        RAISE_APPLICATION_ERROR(-20004,''Unsupported attribute data type.'');',
-'    END IF;',
-'    IF v IS NOT NULL THEN',
-'        IF t = ''YES_NO'' THEN',
-'            v := UPPER(v);',
-'            IF v NOT IN (''Y'',''N'') THEN',
-'                RAISE_APPLICATION_ERROR(-20005,''Enter Y or N.'');',
-'            END IF;',
-'        ELSIF t = ''NUMBER'' THEN',
-'            BEGIN',
-'                n := TO_NUMBER(v);',
-'            EXCEPTION WHEN OTHERS THEN',
-'                RAISE_APPLICATION_ERROR(-20006,''Enter a valid number.'');',
-'            END;',
-'        ELSIF t = ''DATE'' THEN',
-'            BEGIN',
-'                d := TO_DATE(v,''FXYYYY-MM-DD'');',
-'            EXCEPTION WHEN OTHERS THEN',
-'                RAISE_APPLICATION_ERROR(-20007,''Enter a date as YYYY-MM-DD.'');',
-'            END;',
-'        END IF;',
-'    END IF;',
-'    :ATTRIBUTE_VALUE := v;',
-'    IF :ITEM_ATTR_VALUE_ID IS NULL THEN',
-'        IF v IS NULL THEN RETURN; END IF;',
-'        SELECT COUNT(*) INTO n',
-'          FROM ops.adre_inv_item_attr_value',
-'         WHERE request_org_id = :REQUEST_ORG_ID',
-'           AND item_attribute_id = :ITEM_ATTRIBUTE_ID;',
-'        IF n > 0 THEN',
-'            RAISE_APPLICATION_ERROR(-20008,''Value already saved. Refresh.'');',
-'        END IF;',
-'        INSERT INTO ops.adre_inv_item_attr_value',
-'            (request_org_id,item_attribute_id,attribute_value,value_status)',
-'        VALUES (:REQUEST_ORG_ID,:ITEM_ATTRIBUTE_ID,v,''DRAFT'')',
-'        RETURNING item_attr_value_id,record_version_number',
-'             INTO :ITEM_ATTR_VALUE_ID,:RECORD_VERSION_NUMBER;',
-'    ELSE',
-'        UPDATE ops.adre_inv_item_attr_value',
-'           SET attribute_value = v, value_status = ''DRAFT''',
-'         WHERE item_attr_value_id = :ITEM_ATTR_VALUE_ID',
-'           AND request_org_id = :REQUEST_ORG_ID',
-'           AND item_attribute_id = :ITEM_ATTRIBUTE_ID',
-'           AND record_version_number = :RECORD_VERSION_NUMBER',
-'        RETURNING record_version_number INTO :RECORD_VERSION_NUMBER;',
-'        IF SQL%ROWCOUNT = 0 THEN',
-'            RAISE_APPLICATION_ERROR(-20009,''Value changed or removed. Refresh.'');',
-'        END IF;',
-'    END IF;',
-'EXCEPTION',
-'    WHEN NO_DATA_FOUND THEN',
-'        RAISE_APPLICATION_ERROR(-20010,''Invalid request or attribute configuration.'');',
-'    WHEN TOO_MANY_ROWS THEN',
-'        RAISE_APPLICATION_ERROR(-20011,''Multiple configuration records found.'');',
+'    apps.adre_create_inv_item.p_save_master_attribute',
+'    (',
+'        p_item_request_id       => :P20_ITEM_REQUEST_ID,',
+'        p_request_org_id        => :REQUEST_ORG_ID,',
+'        p_item_type_attr_id     => :ITEM_TYPE_ATTR_ID,',
+'        p_item_attribute_id     => :ITEM_ATTRIBUTE_ID,',
+'        p_apex_row_status       => :APEX$ROW_STATUS,',
+'        p_attribute_value       => :ATTRIBUTE_VALUE,',
+'        p_item_attr_value_id    => :ITEM_ATTR_VALUE_ID,',
+'        p_record_version_number => :RECORD_VERSION_NUMBER',
+'    );',
 'END;'))
 ,p_attribute_05=>'N'
 ,p_attribute_06=>'N'
@@ -24130,98 +24179,19 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>unistr('Categories \00B7 Target - IG - Save Interactive Grid Data')
 ,p_attribute_01=>'PLSQL_CODE'
 ,p_attribute_04=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'DECLARE',
-'    -- Adhesives Research | Joel Calzadilla | 2026-10-15',
-'    -- Page 20: Save TARGET categories; retain trigger auditing.',
-'    l_status VARCHAR2(30);',
-'    l_required VARCHAR2(1);',
-'    l_category NUMBER;',
-'    l_count NUMBER;',
 'BEGIN',
-'    IF NVL(:APEX$ROW_STATUS, ''?'') <> ''U'' THEN',
-'        RAISE_APPLICATION_ERROR(-20001, ''Only updates are allowed.'');',
-'    END IF;',
-'',
-'    SELECT request_status INTO l_status',
-'      FROM ops.adre_inv_item_request',
-'     WHERE item_request_id = :P20_ITEM_REQUEST_ID',
-'       FOR UPDATE;',
-'',
-'    IF NVL(l_status, ''?'') <> ''DRAFT'' THEN',
-'        RAISE_APPLICATION_ERROR(-20002, ''The request must be DRAFT.'');',
-'    END IF;',
-'',
-'    SELECT cfg.required_flag INTO l_required',
-'      FROM ops.adre_inv_item_request_org org,',
-'           ops.adre_inv_item_org_cat_set cfg,',
-'           apps.mtl_category_sets_b cs',
-'     WHERE org.request_org_id = :REQUEST_ORG_ID',
-'       AND org.request_org_id = :P20_SELECTED_REQUEST_ORG_ID',
-'       AND org.item_request_id = :P20_ITEM_REQUEST_ID',
-'       AND org.organization_role = ''TARGET''',
-'       AND cfg.ebs_organization_id = org.ebs_organization_id',
-'       AND cfg.ebs_category_set_id = :EBS_CATEGORY_SET_ID',
-'       AND cfg.active_flag = ''Y''',
-'       AND cs.category_set_id = cfg.ebs_category_set_id',
-'       AND cs.control_level = 2;',
-'',
-'    :CATEGORY_VALUE := TRIM(:CATEGORY_VALUE);',
-'    IF :CATEGORY_VALUE IS NULL AND l_required = ''Y'' THEN',
-'        RAISE_APPLICATION_ERROR(-20003, ''A category value is required.'');',
-'    END IF;',
-'',
-'    IF :CATEGORY_VALUE IS NOT NULL THEN',
-'        SELECT cat.category_id INTO l_category',
-'          FROM apps.mtl_categories_kfv cat,',
-'               apps.mtl_category_sets_b cs',
-'         WHERE cs.category_set_id = :EBS_CATEGORY_SET_ID',
-'           AND cat.concatenated_segments = :CATEGORY_VALUE',
-'           AND ((cs.validate_flag = ''Y'' AND EXISTS (',
-'                   SELECT 1 FROM apps.mtl_category_set_valid_cats vc',
-'                    WHERE vc.category_set_id = cs.category_set_id',
-'                      AND vc.category_id = cat.category_id))',
-'                OR (cs.validate_flag = ''N''',
-'                    AND cat.structure_id = cs.structure_id));',
-'    END IF;',
-'',
-'    IF :ITEM_CATEGORY_ID IS NULL THEN',
-'        IF :CATEGORY_VALUE IS NULL THEN',
-'            RETURN;',
-'        END IF;',
-'        SELECT COUNT(*) INTO l_count',
-'          FROM ops.adre_inv_item_category',
-'         WHERE request_org_id = :REQUEST_ORG_ID',
-'           AND ebs_category_set_id = :EBS_CATEGORY_SET_ID;',
-'        IF l_count > 0 THEN',
-'            RAISE_APPLICATION_ERROR(-20004, ''Category already saved. Refresh.'');',
-'        END IF;',
-'        INSERT INTO ops.adre_inv_item_category',
-'            (request_org_id, ebs_category_set_id, ebs_category_id,',
-'             category_value, assignment_status)',
-'        VALUES (:REQUEST_ORG_ID, :EBS_CATEGORY_SET_ID, l_category,',
-'                :CATEGORY_VALUE, ''DRAFT'')',
-'        RETURNING item_category_id, ebs_category_id, record_version_number',
-'             INTO :ITEM_CATEGORY_ID, :EBS_CATEGORY_ID, :RECORD_VERSION_NUMBER;',
-'    ELSE',
-'        UPDATE ops.adre_inv_item_category',
-'           SET ebs_category_id = l_category,',
-'               category_value = :CATEGORY_VALUE,',
-'               assignment_status = ''DRAFT''',
-'         WHERE item_category_id = :ITEM_CATEGORY_ID',
-'           AND request_org_id = :REQUEST_ORG_ID',
-'           AND ebs_category_set_id = :EBS_CATEGORY_SET_ID',
-'           AND record_version_number = :RECORD_VERSION_NUMBER',
-'        RETURNING ebs_category_id, record_version_number',
-'             INTO :EBS_CATEGORY_ID, :RECORD_VERSION_NUMBER;',
-'        IF SQL%ROWCOUNT = 0 THEN',
-'            RAISE_APPLICATION_ERROR(-20005, ''Category changed. Refresh.'');',
-'        END IF;',
-'    END IF;',
-'EXCEPTION',
-'    WHEN NO_DATA_FOUND THEN',
-'        RAISE_APPLICATION_ERROR(-20006, ''Invalid request or category.'');',
-'    WHEN TOO_MANY_ROWS THEN',
-'        RAISE_APPLICATION_ERROR(-20007, ''Multiple matching records found.'');',
+'    apps.adre_create_inv_item.p_save_target_category',
+'    (',
+'        p_item_request_id         => :P20_ITEM_REQUEST_ID,',
+'        p_selected_request_org_id => :P20_SELECTED_REQUEST_ORG_ID,',
+'        p_request_org_id          => :REQUEST_ORG_ID,',
+'        p_ebs_category_set_id     => :EBS_CATEGORY_SET_ID,',
+'        p_apex_row_status         => :APEX$ROW_STATUS,',
+'        p_category_value          => :CATEGORY_VALUE,',
+'        p_item_category_id        => :ITEM_CATEGORY_ID,',
+'        p_ebs_category_id         => :EBS_CATEGORY_ID,',
+'        p_record_version_number   => :RECORD_VERSION_NUMBER',
+'    );',
 'END;'))
 ,p_attribute_05=>'N'
 ,p_attribute_06=>'N'
@@ -24237,106 +24207,45 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>unistr('Attributes \00B7 Target - IG - Save Interactive Grid Data')
 ,p_attribute_01=>'PLSQL_CODE'
 ,p_attribute_04=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'DECLARE',
-'s VARCHAR2(30);',
-'t VARCHAR2(30);',
-'c VARCHAR2(100);',
-'r VARCHAR2(1);',
-'o NUMBER;',
-'n NUMBER;',
-'d DATE;',
-'v ops.adre_inv_item_attr_value.attribute_value%TYPE;',
-'u ops.adre_inv_item_attr_value.value_uom_code%TYPE;',
-'PROCEDURE fail(p VARCHAR2) IS',
-'BEGIN RAISE_APPLICATION_ERROR(-20001,p); END;',
 'BEGIN',
-'IF NVL(:APEX$ROW_STATUS,''?'') <> ''U'' THEN fail(''Updates only.''); END IF;',
-'SELECT request_status INTO s FROM ops.adre_inv_item_request',
-' WHERE item_request_id=:P20_ITEM_REQUEST_ID FOR UPDATE;',
-'IF NVL(s,''?'') NOT IN (''DRAFT'',''ERROR'') THEN',
-' fail(''Request must be DRAFT or ERROR.'');',
-'END IF;',
-'SELECT a.attribute_data_type,a.attribute_code,',
-' NVL(ta.required_flag,a.required_flag),ro.ebs_organization_id,',
-' a.unit_of_measure',
-' INTO t,c,r,o,u',
-' FROM ops.adre_inv_item_request q,',
-' ops.adre_inv_item_request_org ro,',
-' ops.adre_inv_item_type_attr ta,',
-' ops.adre_inv_item_attribute a',
-' WHERE q.item_request_id=:P20_ITEM_REQUEST_ID',
-' AND ro.item_request_id=q.item_request_id',
-' AND ro.request_org_id=:REQUEST_ORG_ID',
-' AND ro.request_org_id=:P20_SELECTED_REQUEST_ORG_ID',
-' AND ro.organization_role=''TARGET''',
-' AND ta.item_type_id=q.item_type_id',
-' AND ta.item_type_attr_id=:ITEM_TYPE_ATTR_ID',
-' AND ta.active_flag=''Y''',
-' AND ta.organization_scope IN (''TARGET'',''BOTH'')',
-' AND a.item_attribute_id=ta.item_attribute_id',
-' AND a.item_attribute_id=:ITEM_ATTRIBUTE_ID',
-' AND a.active_flag=''Y'';',
-'v:=TRIM(:ATTRIBUTE_VALUE);',
-'u:=CASE WHEN v IS NOT NULL THEN UPPER(TRIM(u)) END;',
-'IF v IS NULL AND r=''Y'' THEN fail(''Value required.''); END IF;',
-'IF t IS NULL OR t NOT IN (''CHAR'',''NUMBER'',''DATE'',''YES_NO'') THEN',
-' fail(''Unsupported type.'');',
-'END IF;',
-'IF v IS NOT NULL THEN',
-' IF t=''YES_NO'' THEN',
-'  v:=UPPER(v);',
-'  IF v NOT IN (''Y'',''N'') THEN fail(''Enter Y or N.''); END IF;',
-' ELSIF t=''NUMBER'' THEN',
-'  BEGIN n:=TO_NUMBER(v);',
-'  EXCEPTION WHEN OTHERS THEN fail(''Enter a number.''); END;',
-' ELSIF t=''DATE'' THEN',
-'  BEGIN d:=TO_DATE(v,''FXYYYY-MM-DD'');',
-'  EXCEPTION WHEN OTHERS THEN fail(''Use YYYY-MM-DD.''); END;',
-' END IF;',
-' IF c=''PLANNER'' THEN',
-'  SELECT COUNT(*) INTO n FROM apps.mtl_planners',
-'   WHERE organization_id=o AND planner_code=v',
-'   AND (disable_date IS NULL OR disable_date>SYSDATE);',
-'  IF n<>1 THEN fail(''Invalid planner for this organization.''); END IF;',
-' END IF;',
-'END IF;',
-'IF u IS NOT NULL THEN',
-' SELECT COUNT(*) INTO n FROM apps.mtl_units_of_measure_vl',
-'  WHERE uom_code=u',
-'  AND NVL(disable_date,TRUNC(SYSDATE)+1)>TRUNC(SYSDATE);',
-' IF n<>1 THEN fail(''Invalid configured UOM.''); END IF;',
-'END IF;',
-':ATTRIBUTE_VALUE:=v;',
-':VALUE_UOM_CODE:=u;',
-'IF :ITEM_ATTR_VALUE_ID IS NULL THEN',
-' IF v IS NULL THEN RETURN; END IF;',
-' SELECT COUNT(*) INTO n FROM ops.adre_inv_item_attr_value',
-'  WHERE request_org_id=:REQUEST_ORG_ID',
-'  AND item_attribute_id=:ITEM_ATTRIBUTE_ID;',
-' IF n>0 THEN fail(''Value exists. Refresh.''); END IF;',
-' INSERT INTO ops.adre_inv_item_attr_value',
-' (request_org_id,item_attribute_id,attribute_value,value_uom_code,value_status)',
-' VALUES (:REQUEST_ORG_ID,:ITEM_ATTRIBUTE_ID,v,u,''DRAFT'')',
-' RETURNING item_attr_value_id,record_version_number',
-' INTO :ITEM_ATTR_VALUE_ID,:RECORD_VERSION_NUMBER;',
-'ELSE',
-' UPDATE ops.adre_inv_item_attr_value',
-' SET attribute_value=v,value_uom_code=u,value_status=''DRAFT''',
-' WHERE item_attr_value_id=:ITEM_ATTR_VALUE_ID',
-' AND request_org_id=:REQUEST_ORG_ID',
-' AND item_attribute_id=:ITEM_ATTRIBUTE_ID',
-' AND record_version_number=:RECORD_VERSION_NUMBER',
-' RETURNING record_version_number INTO :RECORD_VERSION_NUMBER;',
-' IF SQL%ROWCOUNT=0 THEN fail(''Value changed. Refresh.''); END IF;',
-'END IF;',
-'EXCEPTION',
-'WHEN NO_DATA_FOUND THEN fail(''Invalid configuration.'');',
-'WHEN TOO_MANY_ROWS THEN fail(''Duplicate configuration.'');',
+'    apps.adre_create_inv_item.p_save_target_attribute',
+'    (',
+'        p_item_request_id         => :P20_ITEM_REQUEST_ID,',
+'        p_selected_request_org_id => :P20_SELECTED_REQUEST_ORG_ID,',
+'        p_request_org_id          => :REQUEST_ORG_ID,',
+'        p_item_type_attr_id       => :ITEM_TYPE_ATTR_ID,',
+'        p_item_attribute_id       => :ITEM_ATTRIBUTE_ID,',
+'        p_apex_row_status         => :APEX$ROW_STATUS,',
+'        p_attribute_value         => :ATTRIBUTE_VALUE,',
+'        p_value_uom_code          => :VALUE_UOM_CODE,',
+'        p_item_attr_value_id      => :ITEM_ATTR_VALUE_ID,',
+'        p_record_version_number   => :RECORD_VERSION_NUMBER',
+'    );',
 'END;'))
 ,p_attribute_05=>'Y'
 ,p_attribute_06=>'Y'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
 ,p_internal_uid=>345393620186800130
+);
+wwv_flow_imp_page.create_page_process(
+ p_id=>wwv_flow_imp.id(4113092148649119)
+,p_process_sequence=>80
+,p_process_point=>'AFTER_SUBMIT'
+,p_process_type=>'NATIVE_PLSQL'
+,p_process_name=>'PROC_DELETE_REQUEST'
+,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'BEGIN',
+'    apps.adre_create_inv_item.p_apex_delete_request',
+'    (',
+'        p_item_request_id => :P20_ITEM_REQUEST_ID',
+'    );',
+'',
+'    apex_application.g_print_success_message := ''Request deleted.'';',
+'END;'))
+,p_process_clob_language=>'PLSQL'
+,p_error_display_location=>'INLINE_IN_NOTIFICATION'
+,p_process_when_button_id=>wwv_flow_imp.id(4113197166649120)
+,p_internal_uid=>363115683437404503
 );
 wwv_flow_imp_page.create_page_process(
  p_id=>wwv_flow_imp.id(1034013192594846556)
@@ -24345,46 +24254,26 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'Load Request'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'declare',
-'begin',
-'    if :P20_ITEM_REQUEST_ID is not null then',
-'        select REQUEST_NUMBER,',
-'               REQUEST_STATUS,',
-'               ITEM_TYPE_ID,',
-'               BASE_PART_NUMBER,',
-'               ITEM_NUMBER,',
-'               PART_STATUS,',
-'               ITEM_DESCRIPTION,',
-'               LONG_DESCRIPTION,',
-'               PRIMARY_UOM_CODE,',
-'               ITEM_STATUS_CODE,',
-'               INITIATOR,',
-'               REQUESTED_CREATION_DATE,',
-'               FORECAST_FLAG',
-'          into :P20_REQUEST_NUMBER,',
-'               :P20_REQUEST_STATUS,',
-'               :P20_ITEM_TYPE_ID,',
-'               :P20_BASE_PART_NUMBER,',
-'               :P20_ITEM_NUMBER,',
-'               :P20_PART_STATUS,',
-'               :P20_ITEM_DESCRIPTION,',
-'               :P20_LONG_DESCRIPTION,',
-'               :P20_PRIMARY_UOM_CODE,',
-'               :P20_ITEM_STATUS_CODE,',
-'               :P20_INITIATOR,',
-'               :P20_REQUESTED_CREATION_DATE,',
-'               :P20_FORECAST_FLAG',
-'          from ADRE_INV_ITEM_REQUEST',
-'         where ITEM_REQUEST_ID = :P20_ITEM_REQUEST_ID;',
-'    else',
-'        :P20_REQUEST_STATUS := ''DRAFT'';',
-'        :P20_INITIATOR := :APP_USER;',
-'      --  :P20_REQUESTED_CREATION_DATE := trunc(sysdate);',
-'    end if;',
-'exception',
-'    when no_data_found then',
-'        null;',
-'end;'))
+'BEGIN',
+'    apps.adre_create_inv_item.p_apex_load_request',
+'    (',
+'        p_item_request_id          => :P20_ITEM_REQUEST_ID,',
+'        p_app_user                 => :APP_USER,',
+'        x_request_number          => :P20_REQUEST_NUMBER,',
+'        x_request_status          => :P20_REQUEST_STATUS,',
+'        x_item_type_id            => :P20_ITEM_TYPE_ID,',
+'        x_base_part_number        => :P20_BASE_PART_NUMBER,',
+'        x_item_number             => :P20_ITEM_NUMBER,',
+'        x_part_status             => :P20_PART_STATUS,',
+'        x_item_description        => :P20_ITEM_DESCRIPTION,',
+'        x_long_description        => :P20_LONG_DESCRIPTION,',
+'        x_primary_uom_code        => :P20_PRIMARY_UOM_CODE,',
+'        x_item_status_code        => :P20_ITEM_STATUS_CODE,',
+'        x_initiator               => :P20_INITIATOR,',
+'        x_requested_creation_date => :P20_REQUESTED_CREATION_DATE,',
+'        x_forecast_flag           => :P20_FORECAST_FLAG',
+'    );',
+'END;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_internal_uid=>88000000000000120
 );
@@ -24396,31 +24285,52 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>'PROC_VALIDATE_TARGET_SELECTION'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'BEGIN',
-'    :P20_SELECTED_TARGET_CODE := NULL;',
-'',
-'    IF :P20_ITEM_REQUEST_ID IS NULL',
-'       OR :P20_SELECTED_REQUEST_ORG_ID IS NULL THEN',
-'        :P20_SELECTED_REQUEST_ORG_ID := NULL;',
-'    ELSE',
-'        BEGIN',
-'            SELECT mp.organization_code',
-'            INTO   :P20_SELECTED_TARGET_CODE',
-'            FROM   ops.adre_inv_item_request_org reqorg,',
-'                   apps.mtl_parameters mp',
-'            WHERE  reqorg.request_org_id = :P20_SELECTED_REQUEST_ORG_ID',
-'            AND    reqorg.item_request_id = :P20_ITEM_REQUEST_ID',
-'            AND    reqorg.organization_role = ''TARGET''',
-'            AND    mp.organization_id = reqorg.ebs_organization_id;',
-'',
-'        EXCEPTION',
-'            WHEN NO_DATA_FOUND THEN',
-'                :P20_SELECTED_REQUEST_ORG_ID := NULL;',
-'                :P20_SELECTED_TARGET_CODE := NULL;',
-'        END;',
-'    END IF;',
+'    apps.adre_create_inv_item.p_apex_validate_target_selection',
+'    (',
+'        p_item_request_id => :P20_ITEM_REQUEST_ID,',
+'        io_request_org_id => :P20_SELECTED_REQUEST_ORG_ID,',
+'        x_target_code     => :P20_SELECTED_TARGET_CODE',
+'    );',
 'END;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_internal_uid=>340289819702196106
+);
+wwv_flow_imp_page.create_page_process(
+ p_id=>wwv_flow_imp.id(1034013192594846557)
+,p_process_sequence=>10
+,p_process_point=>'ON_SUBMIT_BEFORE_COMPUTATION'
+,p_process_type=>'NATIVE_PLSQL'
+,p_process_name=>'PROC_SAVE_DRAFT'
+,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'BEGIN',
+'    apps.adre_create_inv_item.p_save_draft_request',
+'    (',
+'    p_item_request_id => :P20_ITEM_REQUEST_ID,',
+'    p_request_number => :P20_REQUEST_NUMBER,',
+'    p_request_status => :P20_REQUEST_STATUS,',
+'    p_item_type_id => :P20_ITEM_TYPE_ID,',
+'    p_base_part_number => :P20_BASE_PART_NUMBER,',
+'    p_item_number => :P20_ITEM_NUMBER,',
+'    p_part_status => :P20_PART_STATUS,',
+'    p_item_description => :P20_ITEM_DESCRIPTION,',
+'    p_long_description => :P20_LONG_DESCRIPTION,',
+'    p_primary_uom_code => :P20_PRIMARY_UOM_CODE,',
+'    p_item_status_code => :P20_ITEM_STATUS_CODE,',
+'    p_initiator => :P20_INITIATOR,',
+'    p_requested_creation_date => :P20_REQUESTED_CREATION_DATE,',
+'    p_forecast_flag => :P20_FORECAST_FLAG,',
+'    p_app_user => :APP_USER',
+'    );',
+'  ',
+'  apex_application.g_print_success_message := ''Request saved.'';',
+'END;',
+'',
+' '))
+,p_process_clob_language=>'PLSQL'
+,p_error_display_location=>'INLINE_IN_NOTIFICATION'
+,p_process_when=>'SAVE_DRAFT'
+,p_process_when_type=>'REQUEST_EQUALS_CONDITION'
+,p_internal_uid=>88000000000000121
 );
 end;
 /
@@ -24437,7 +24347,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'02'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261012175643'
+,p_last_upd_yyyymmddhh24miss=>'20261030192313'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(330208774727458611)
@@ -24844,17 +24754,12 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>'Load Attribute Metadata'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'BEGIN',
-'    IF :P22_ITEM_ATTRIBUTE_ID IS NOT NULL THEN',
-'',
-'        SELECT attribute_name,',
-'               attribute_data_type',
-'        INTO   :P22_ATTRIBUTE_NAME,',
-'               :P22_ATTRIBUTE_DATA_TYPE',
-'        FROM   ops.adre_inv_item_attribute',
-'        WHERE  item_attribute_id = :P22_ITEM_ATTRIBUTE_ID',
-'        AND    active_flag = ''Y'';',
-'',
-'    END IF;',
+'    apps.adre_create_inv_item.p_load_attribute_metadata',
+'    (',
+'        p_item_attribute_id   => :P22_ITEM_ATTRIBUTE_ID,',
+'        x_attribute_name      => :P22_ATTRIBUTE_NAME,',
+'        x_attribute_data_type => :P22_ATTRIBUTE_DATA_TYPE',
+'    );',
 'END;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_internal_uid=>329946397640243824
@@ -24874,7 +24779,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'02'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261009174109'
+,p_last_upd_yyyymmddhh24miss=>'20261030192512'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(11060389117832295)
@@ -25255,60 +25160,19 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>'PROC_RESOLVE_CATEGORY_ID'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'BEGIN',
-'    IF :P24_ITEM_CATEGORY_ID IS NULL THEN',
-'        :P24_RECORD_VERSION_NUMBER := 1;',
-'        :P24_CREATED_BY := :APP_USER;',
-'    ELSE',
-'        :P24_RECORD_VERSION_NUMBER :=',
-'            NVL(:P24_RECORD_VERSION_NUMBER, 0) + 1;',
-'    END IF;',
-'',
-'    SELECT cat.category_id',
-'    INTO   :P24_EBS_CATEGORY_ID',
-'    FROM   apps.mtl_categories_kfv cat,',
-'           apps.mtl_category_sets_b cat_set,',
-'           ops.adre_inv_item_request_org reqorg,',
-'           ops.adre_inv_item_request req',
-'    WHERE  cat_set.category_set_id = :P24_EBS_CATEGORY_SET_ID',
-'    AND    cat_set.control_level = 1',
-'    AND    cat.concatenated_segments = :P24_CATEGORY_VALUE',
-'    AND    reqorg.request_org_id = :P24_REQUEST_ORG_ID',
-'    AND    reqorg.organization_role = ''MASTER''',
-'    AND    req.item_request_id = reqorg.item_request_id',
-'    AND    req.request_status = ''DRAFT''',
-'    AND    (',
-'              (',
-'                  cat_set.validate_flag = ''Y''',
-'                  AND EXISTS (',
-'                      SELECT 1',
-'                      FROM   apps.mtl_category_set_valid_cats valid_cat',
-'                      WHERE  valid_cat.category_set_id =',
-'                             cat_set.category_set_id',
-'                      AND    valid_cat.category_id = cat.category_id',
-'                  )',
-'              )',
-'              OR',
-'              (',
-'                  cat_set.validate_flag = ''N''',
-'                  AND cat.structure_id = cat_set.structure_id',
-'              )',
-'           );',
-'',
-'    :P24_ASSIGNMENT_STATUS := ''DRAFT'';',
-'    :P24_LAST_UPDATED_BY := :APP_USER;',
-'',
-'EXCEPTION',
-'    WHEN NO_DATA_FOUND THEN',
-'        raise_application_error(',
-'            -20001,',
-'            ''The selected category is not valid for this MASTER request.''',
-'        );',
-'',
-'    WHEN TOO_MANY_ROWS THEN',
-'        raise_application_error(',
-'            -20002,',
-'            ''The category value matches more than one EBS category.''',
-'        );',
+'    apps.adre_create_inv_item.p_prepare_master_category',
+'    (',
+'        p_item_category_id      => :P24_ITEM_CATEGORY_ID,',
+'        p_category_set_id       => :P24_EBS_CATEGORY_SET_ID,',
+'        p_category_value        => :P24_CATEGORY_VALUE,',
+'        p_request_org_id        => :P24_REQUEST_ORG_ID,',
+'        p_app_user              => :APP_USER,',
+'        x_record_version_number => :P24_RECORD_VERSION_NUMBER,',
+'        x_created_by            => :P24_CREATED_BY,',
+'        x_ebs_category_id       => :P24_EBS_CATEGORY_ID,',
+'        x_assignment_status     => :P24_ASSIGNMENT_STATUS,',
+'        x_last_updated_by       => :P24_LAST_UPDATED_BY',
+'    );',
 'END;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
@@ -25365,7 +25229,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'02'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261008191819'
+,p_last_upd_yyyymmddhh24miss=>'20261030193609'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(14995672986494815)
@@ -25784,87 +25648,23 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'PROC_PREPARE_TARGET_CATEGORY'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'DECLARE',
-'    l_count NUMBER;',
 'BEGIN',
-'    SELECT COUNT(*)',
-'    INTO   l_count',
-'    FROM   ops.adre_inv_item_request req,',
-'           ops.adre_inv_item_request_org reqorg,',
-'           ops.adre_inv_item_org_cat_set cfg,',
-'           apps.mtl_category_sets_b catset',
-'    WHERE  req.item_request_id = :P26_ITEM_REQUEST_ID',
-'    AND    req.request_status = ''DRAFT''',
-'    AND    reqorg.item_request_id = req.item_request_id',
-'    AND    reqorg.request_org_id = :P26_REQUEST_ORG_ID',
-'    AND    reqorg.organization_role = ''TARGET''',
-'    AND    cfg.ebs_organization_id = reqorg.ebs_organization_id',
-'    AND    cfg.ebs_category_set_id = :P26_EBS_CATEGORY_SET_ID',
-'    AND    cfg.active_flag = ''Y''',
-'    AND    catset.category_set_id = cfg.ebs_category_set_id',
-'    AND    catset.control_level = 2;',
-'',
-'    IF l_count <> 1 THEN',
-'        raise_application_error(',
-'            -20001,',
-'            ''The selected category set is not available for this draft TARGET organization.''',
-'        );',
-'    END IF;',
-'',
-'    IF :P26_ITEM_CATEGORY_ID IS NOT NULL THEN',
-'        SELECT COUNT(*)',
-'        INTO   l_count',
-'        FROM   ops.adre_inv_item_category cat',
-'        WHERE  cat.item_category_id = :P26_ITEM_CATEGORY_ID',
-'        AND    cat.request_org_id = :P26_REQUEST_ORG_ID',
-'        AND    cat.ebs_category_set_id = :P26_EBS_CATEGORY_SET_ID;',
-'',
-'        IF l_count <> 1 THEN',
-'            raise_application_error(',
-'                -20002,',
-'                ''The category row does not belong to the selected TARGET organization and category set.''',
-'            );',
-'        END IF;',
-'    END IF;',
-'',
-'    SELECT cat.category_id',
-'    INTO   :P26_EBS_CATEGORY_ID',
-'    FROM   apps.mtl_categories_kfv cat,',
-'           apps.mtl_category_sets_b catset',
-'    WHERE  catset.category_set_id = :P26_EBS_CATEGORY_SET_ID',
-'    AND    catset.control_level = 2',
-'    AND    cat.concatenated_segments = :P26_CATEGORY_VALUE',
-'    AND    (',
-'               (catset.validate_flag = ''Y''',
-'                AND EXISTS (',
-'                    SELECT 1',
-'                    FROM   apps.mtl_category_set_valid_cats valid_cat',
-'                    WHERE  valid_cat.category_set_id = catset.category_set_id',
-'                    AND    valid_cat.category_id = cat.category_id',
-'                ))',
-'            OR (catset.validate_flag = ''N''',
-'                AND cat.structure_id = catset.structure_id)',
-'           );',
-'',
-'    :P26_ASSIGNMENT_STATUS := ''DRAFT'';',
-'',
-'        :P26_LAST_UPDATED_BY := :APP_USER;',
-'    :P26_LAST_UPDATE_DATE := TO_CHAR(SYSDATE, ''YYYY-MM-DD HH24:MI:SS'');',
-'',
-'    IF :P26_ITEM_CATEGORY_ID IS NULL THEN',
-'        :P26_CREATED_BY := :APP_USER;',
-'        :P26_CREATION_DATE := TO_CHAR(SYSDATE, ''YYYY-MM-DD HH24:MI:SS'');',
-'        :P26_RECORD_VERSION_NUMBER := 1;',
-'    ELSE',
-'        :P26_RECORD_VERSION_NUMBER :=',
-'            NVL(:P26_RECORD_VERSION_NUMBER, 0) + 1;',
-'    END IF;',
-'',
-'EXCEPTION',
-'    WHEN NO_DATA_FOUND THEN',
-'        raise_application_error(-20003, ''Select a valid category value.'');',
-'    WHEN TOO_MANY_ROWS THEN',
-'        raise_application_error(-20004, ''The selected category value is ambiguous in EBS.'');',
+'    apps.adre_create_inv_item.p_prepare_target_category',
+'    (',
+'        p_item_request_id       => :P26_ITEM_REQUEST_ID,',
+'        p_request_org_id        => :P26_REQUEST_ORG_ID,',
+'        p_category_set_id       => :P26_EBS_CATEGORY_SET_ID,',
+'        p_item_category_id      => :P26_ITEM_CATEGORY_ID,',
+'        p_category_value        => :P26_CATEGORY_VALUE,',
+'        p_app_user              => :APP_USER,',
+'        x_ebs_category_id       => :P26_EBS_CATEGORY_ID,',
+'        x_assignment_status     => :P26_ASSIGNMENT_STATUS,',
+'        x_last_updated_by       => :P26_LAST_UPDATED_BY,',
+'        x_last_update_date      => :P26_LAST_UPDATE_DATE,',
+'        x_created_by            => :P26_CREATED_BY,',
+'        x_creation_date         => :P26_CREATION_DATE,',
+'        x_record_version_number => :P26_RECORD_VERSION_NUMBER',
+'    );',
 'END;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
@@ -26543,7 +26343,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'16'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261009191347'
+,p_last_upd_yyyymmddhh24miss=>'20261030194145'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(15487383744956833)
@@ -26644,78 +26444,12 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'PROC_REMOVE_TARGET_ORG'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'DECLARE',
-'    l_request_org_id ops.adre_inv_item_request_org.request_org_id%TYPE;',
-'    l_api_log_count  NUMBER;',
 'BEGIN',
-'    SAVEPOINT remove_target_org;',
-'',
-'    SELECT reqorg.request_org_id',
-'    INTO   l_request_org_id',
-'    FROM   ops.adre_inv_item_request req,',
-'           ops.adre_inv_item_request_org reqorg',
-'    WHERE  req.item_request_id = :P32_ITEM_REQUEST_ID',
-'    AND    req.request_status = ''DRAFT''',
-'    AND    reqorg.item_request_id = req.item_request_id',
-'    AND    reqorg.request_org_id = :P32_REQUEST_ORG_ID',
-'    AND    reqorg.organization_role = ''TARGET''',
-'    AND    reqorg.assignment_status = ''DRAFT''',
-'    AND    reqorg.ebs_inventory_item_id IS NULL',
-'    FOR UPDATE OF reqorg.assignment_status;',
-'',
-'    SELECT COUNT(*)',
-'    INTO   l_api_log_count',
-'    FROM   ops.adre_inv_item_api_log log',
-'    WHERE  log.request_org_id = l_request_org_id;',
-'',
-'    IF l_api_log_count > 0 THEN',
-'        raise_application_error(',
-'            -20001,',
-'            ''This target organization has API history and cannot be removed.''',
-'        );',
-'    END IF;',
-'',
-'    DELETE FROM ops.adre_inv_item_bom_comp comp',
-'    WHERE comp.item_bom_id IN (',
-'        SELECT bom.item_bom_id',
-'        FROM   ops.adre_inv_item_bom bom',
-'        WHERE  bom.request_org_id = l_request_org_id',
+'    apps.adre_create_inv_item.p_remove_target_organization',
+'    (',
+'        p_item_request_id => :P32_ITEM_REQUEST_ID,',
+'        p_request_org_id  => :P32_REQUEST_ORG_ID',
 '    );',
-'',
-'    DELETE FROM ops.adre_inv_item_bom bom',
-'    WHERE bom.request_org_id = l_request_org_id;',
-'',
-'    DELETE FROM ops.adre_inv_item_attr_value val',
-'    WHERE val.request_org_id = l_request_org_id;',
-'',
-'    DELETE FROM ops.adre_inv_item_category cat',
-'    WHERE cat.request_org_id = l_request_org_id;',
-'',
-'    DELETE FROM ops.adre_inv_item_document doc',
-'    WHERE doc.request_org_id = l_request_org_id;',
-'',
-'    DELETE FROM ops.adre_inv_item_request_org reqorg',
-'    WHERE reqorg.request_org_id = l_request_org_id',
-'    AND   reqorg.item_request_id = :P32_ITEM_REQUEST_ID',
-'    AND   reqorg.organization_role = ''TARGET'';',
-'',
-'    IF SQL%ROWCOUNT <> 1 THEN',
-'        raise_application_error(',
-'            -20002,',
-'            ''The target organization could not be removed.''',
-'        );',
-'    END IF;',
-'',
-'EXCEPTION',
-'    WHEN NO_DATA_FOUND THEN',
-'        ROLLBACK TO remove_target_org;',
-'        raise_application_error(',
-'            -20003,',
-'            ''This target assignment is no longer an eligible draft.''',
-'        );',
-'    WHEN OTHERS THEN',
-'        ROLLBACK TO remove_target_org;',
-'        RAISE;',
 'END;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
@@ -26747,7 +26481,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'16'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20260928223442'
+,p_last_upd_yyyymmddhh24miss=>'20261030201216'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(1034013192594846573)
@@ -26923,28 +26657,17 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'PROC_SAVE_APPROVAL_DECISION'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'declare',
-'    l_status varchar2(30);',
-'begin',
-'    l_status :=',
-'        case :REQUEST',
-'            when ''APPROVE'' then ''APPROVED''',
-'            when ''REJECT'' then ''REJECTED''',
-'            when ''REQUEST_CHANGES'' then ''CHANGES_REQUESTED''',
-'        end;',
-'',
-'    update ADRE_INV_ITEM_APPROVAL',
-'       set APPROVAL_STATUS = l_status,',
-'           DECISION_BY = :APP_USER,',
-'           DECISION_DATE = sysdate,',
-'           DECISION_COMMENTS = :P35_DECISION_COMMENTS,',
-'           LAST_UPDATED_BY = :APP_USER,',
-'           LAST_UPDATE_DATE = sysdate,',
-'           RECORD_VERSION_NUMBER = nvl(RECORD_VERSION_NUMBER,0) + 1',
-'     where ITEM_APPROVAL_ID = :P35_ITEM_APPROVAL_ID;',
+'BEGIN',
+'    apps.adre_create_inv_item.p_save_approval_decision',
+'    (',
+'        p_item_approval_id  => :P35_ITEM_APPROVAL_ID,',
+'        p_request           => :REQUEST,',
+'        p_decision_comments => :P35_DECISION_COMMENTS,',
+'        p_app_user          => :APP_USER',
+'    );',
 '',
 '    apex_application.g_print_success_message := ''Approval decision saved.'';',
-'end;'))
+'END;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
 ,p_process_when=>'APPROVE,REJECT,REQUEST_CHANGES'
@@ -26958,27 +26681,18 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'Load Approval'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'begin',
-'    select a.ITEM_REQUEST_ID,',
-'           r.ITEM_NUMBER,',
-'           a.APPROVAL_TYPE,',
-'           a.APPROVAL_STATUS,',
-'           a.DECISION_COMMENTS',
-'      into :P35_ITEM_REQUEST_ID,',
-'           :P35_ITEM_NUMBER,',
-'           :P35_APPROVAL_TYPE,',
-'           :P35_APPROVAL_STATUS,',
-'           :P35_DECISION_COMMENTS',
-'      from ADRE_INV_ITEM_APPROVAL a,',
-'           ADRE_INV_ITEM_REQUEST r',
-'     where a.ITEM_APPROVAL_ID = :P35_ITEM_APPROVAL_ID',
-'       and r.ITEM_REQUEST_ID = a.ITEM_REQUEST_ID;',
-'exception',
-'    when no_data_found then',
-'        null;',
-'end;'))
+'BEGIN',
+'    apps.adre_create_inv_item.p_load_approval',
+'    (',
+'        p_item_approval_id  => :P35_ITEM_APPROVAL_ID,',
+'        x_item_request_id   => :P35_ITEM_REQUEST_ID,',
+'        x_item_number       => :P35_ITEM_NUMBER,',
+'        x_approval_type     => :P35_APPROVAL_TYPE,',
+'        x_approval_status   => :P35_APPROVAL_STATUS,',
+'        x_decision_comments => :P35_DECISION_COMMENTS',
+'    );',
+'END;'))
 ,p_process_clob_language=>'PLSQL'
-,p_error_display_location=>'INLINE_IN_NOTIFICATION'
 ,p_internal_uid=>88000000000000147
 );
 end;
@@ -27650,7 +27364,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'23'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261026171242'
+,p_last_upd_yyyymmddhh24miss=>'20261027210656'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(4719484286631655)
@@ -28165,6 +27879,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_page_header_alignment=>'CENTER'
 ,p_prn_page_footer_alignment=>'CENTER'
 ,p_prn_border_color=>'#666666'
+,p_required_patch=>wwv_flow_imp.id(1260616098169607687)
 );
 wwv_flow_imp_page.create_region_column(
  p_id=>wwv_flow_imp.id(4188922018658)
@@ -31004,17 +30719,17 @@ prompt --application/pages/page_00110
 begin
 wwv_flow_imp_page.create_page(
  p_id=>110
-,p_name=>'Item Type Organizations'
+,p_name=>'Org per Item Type'
 ,p_alias=>'ITEM-TYPE-ORGANIZATIONS'
 ,p_page_mode=>'MODAL'
-,p_step_title=>'Item Type Organizations'
+,p_step_title=>'Org per Item Type'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
 ,p_dialog_width=>'1400'
 ,p_protection_level=>'C'
 ,p_page_component_map=>'21'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261014145843'
+,p_last_upd_yyyymmddhh24miss=>'20261027215651'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(346114812269500)
@@ -31022,7 +30737,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_region_template_options=>'#DEFAULT#'
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_imp.id(1260710197212607767)
-,p_plug_display_sequence=>30
+,p_plug_display_sequence=>40
 ,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'SELECT cfg.item_type_org_id,',
@@ -31031,7 +30746,8 @@ wwv_flow_imp_page.create_page_plug(
 '       cfg.ebs_organization_id,',
 '       cfg.ebs_template_id,',
 '       cfg.active_flag,',
-'       cfg.auto_assign_flag',
+'       cfg.auto_assign_flag,',
+'       ''Categories'' AS Categories_link',
 'FROM   ops.adre_inv_item_type_org cfg',
 'WHERE  cfg.item_type_id = :P110_ITEM_TYPE_ID'))
 ,p_plug_source_type=>'NATIVE_IG'
@@ -31290,6 +31006,36 @@ wwv_flow_imp_page.create_region_column(
 ,p_attribute_03=>'N'
 ,p_use_as_row_header=>false
 );
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(46161819182919275)
+,p_name=>'CATEGORIES_LINK'
+,p_source_type=>'DB_COLUMN'
+,p_source_expression=>'CATEGORIES_LINK'
+,p_data_type=>'VARCHAR2'
+,p_session_state_data_type=>'VARCHAR2'
+,p_is_query_only=>false
+,p_item_type=>'NATIVE_LINK'
+,p_heading=>'Categories'
+,p_heading_alignment=>'LEFT'
+,p_display_sequence=>100
+,p_value_alignment=>'LEFT'
+,p_link_target=>'f?p=&APP_ID.:125:&SESSION.::&DEBUG.:CR,125:P125_ORG_ID:&EBS_ORGANIZATION_ID.'
+,p_link_text=>'&CATEGORIES_LINK.'
+,p_enable_filter=>true
+,p_filter_operators=>'C:S:CASE_INSENSITIVE:REGEXP'
+,p_filter_is_required=>false
+,p_filter_text_case=>'MIXED'
+,p_filter_exact_match=>true
+,p_filter_lov_type=>'DISTINCT'
+,p_use_as_row_header=>false
+,p_enable_sort_group=>true
+,p_enable_control_break=>true
+,p_enable_hide=>true
+,p_is_primary_key=>false
+,p_duplicate_value=>true
+,p_include_in_export=>true
+,p_escape_on_http_output=>true
+);
 wwv_flow_imp_page.create_interactive_grid(
  p_id=>wwv_flow_imp.id(346247494269501)
 ,p_internal_uid=>344819877725465134
@@ -31332,6 +31078,14 @@ wwv_flow_imp_page.create_ig_report_view(
 ,p_srv_exclude_null_values=>false
 ,p_srv_only_display_columns=>true
 ,p_edit_mode=>false
+);
+wwv_flow_imp_page.create_ig_report_column(
+ p_id=>wwv_flow_imp.id(86967219024438)
+,p_view_id=>wwv_flow_imp.id(410492441446354)
+,p_display_seq=>8
+,p_column_id=>wwv_flow_imp.id(46161819182919275)
+,p_is_visible=>true
+,p_is_frozen=>false
 );
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(411051908446356)
@@ -31397,17 +31151,28 @@ wwv_flow_imp_page.create_ig_report_column(
 ,p_is_visible=>true
 ,p_is_frozen=>false
 );
+wwv_flow_imp_page.create_page_plug(
+ p_id=>wwv_flow_imp.id(46161307917919270)
+,p_plug_name=>'New'
+,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
+,p_component_template_options=>'#DEFAULT#'
+,p_plug_template=>wwv_flow_imp.id(1260720086548607771)
+,p_plug_display_sequence=>10
+,p_menu_id=>wwv_flow_imp.id(94001533224529)
+,p_plug_source_type=>'NATIVE_BREADCRUMB'
+,p_menu_template_id=>wwv_flow_imp.id(1260794822792607816)
+);
 wwv_flow_imp_page.create_page_item(
  p_id=>wwv_flow_imp.id(345906144269498)
 ,p_name=>'P110_ITEM_TYPE_ID'
-,p_item_sequence=>10
+,p_item_sequence=>20
 ,p_display_as=>'NATIVE_HIDDEN'
 ,p_attribute_01=>'Y'
 );
 wwv_flow_imp_page.create_page_item(
  p_id=>wwv_flow_imp.id(346029410269499)
 ,p_name=>'P110_ITEM_TYPE_NAME'
-,p_item_sequence=>20
+,p_item_sequence=>30
 ,p_display_as=>'NATIVE_DISPLAY_ONLY'
 ,p_field_template=>wwv_flow_imp.id(1260790714796607811)
 ,p_item_template_options=>'#DEFAULT#'
@@ -32034,7 +31799,7 @@ wwv_flow_imp_page.create_page(
 ,p_protection_level=>'C'
 ,p_page_component_map=>'21'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261024160412'
+,p_last_upd_yyyymmddhh24miss=>'20261030195009'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(483503671816059)
@@ -32814,88 +32579,433 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>'Section Attributes - Save Interactive Grid Data'
 ,p_attribute_01=>'PLSQL_CODE'
 ,p_attribute_04=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'DECLARE',
-'    l_section_id       NUMBER;',
-'    l_display_sequence NUMBER;',
 'BEGIN',
-'    -- Adhesives Research | Developer: Joel Calzadilla | 2026-10-14',
-'    -- Page 120: Attribute CRUD with automatic display sequence.',
-'    -- Database trigger maintains audit fields and row versions.',
-'    CASE :APEX$ROW_STATUS',
-'        WHEN ''C'' THEN',
-'            -- Serialize inserts within the selected section.',
-'            SELECT itesec.item_section_id',
-'              INTO l_section_id',
-'              FROM ops.adre_inv_item_section itesec',
-'             WHERE itesec.item_section_id = :P120_ITEM_SECTION_ID',
-'               FOR UPDATE;',
-'',
-'            SELECT NVL(MAX(iteattr.display_sequence), 0) + 10',
-'              INTO l_display_sequence',
-'              FROM ops.adre_inv_item_attribute iteattr',
-'             WHERE iteattr.item_section_id = l_section_id;',
-'',
-'            INSERT INTO ops.adre_inv_item_attribute',
-'            (',
-'                item_section_id, attribute_code, attribute_name,',
-'                attribute_data_type, description, default_value,',
-'                unit_of_measure, required_flag, active_flag,',
-'                display_sequence, ebs_attribute_name, ebs_attribute_group',
-'            )',
-'            VALUES',
-'            (',
-'                l_section_id, :ATTRIBUTE_CODE, :ATTRIBUTE_NAME,',
-'                :ATTRIBUTE_DATA_TYPE, :DESCRIPTION, :DEFAULT_VALUE,',
-'                :UNIT_OF_MEASURE, NVL(:REQUIRED_FLAG, ''N''),',
-'                NVL(:ACTIVE_FLAG, ''Y''), l_display_sequence,',
-'                :EBS_ATTRIBUTE_NAME, :EBS_ATTRIBUTE_GROUP',
-'            )',
-'            RETURNING item_attribute_id, display_sequence,',
-'                      record_version_number',
-'                 INTO :ITEM_ATTRIBUTE_ID, :DISPLAY_SEQUENCE,',
-'                      :RECORD_VERSION_NUMBER;',
-'',
-'        WHEN ''U'' THEN',
-'            -- Reject updates against an outdated row version.',
-'            UPDATE ops.adre_inv_item_attribute',
-'               SET attribute_code      = :ATTRIBUTE_CODE,',
-'                   attribute_name      = :ATTRIBUTE_NAME,',
-'                   attribute_data_type = :ATTRIBUTE_DATA_TYPE,',
-'                   description         = :DESCRIPTION,',
-'                   default_value       = :DEFAULT_VALUE,',
-'                   unit_of_measure     = :UNIT_OF_MEASURE,',
-'                   required_flag       = :REQUIRED_FLAG,',
-'                   active_flag         = :ACTIVE_FLAG,',
-'                   ebs_attribute_name  = :EBS_ATTRIBUTE_NAME,',
-'                   ebs_attribute_group = :EBS_ATTRIBUTE_GROUP',
-'             WHERE item_attribute_id = :ITEM_ATTRIBUTE_ID',
-'               AND item_section_id = :P120_ITEM_SECTION_ID',
-'               AND record_version_number = :RECORD_VERSION_NUMBER',
-'            RETURNING display_sequence, record_version_number',
-'                 INTO :DISPLAY_SEQUENCE, :RECORD_VERSION_NUMBER;',
-'',
-'            IF SQL%ROWCOUNT = 0 THEN',
-'                RAISE_APPLICATION_ERROR(-20001,',
-'                    ''Attribute changed or unavailable. Reopen the dialog.'');',
-'            END IF;',
-'',
-'        WHEN ''D'' THEN',
-'            -- Delete only an unchanged attribute in this section.',
-'            DELETE FROM ops.adre_inv_item_attribute',
-'             WHERE item_attribute_id = :ITEM_ATTRIBUTE_ID',
-'               AND item_section_id = :P120_ITEM_SECTION_ID',
-'               AND record_version_number = :RECORD_VERSION_NUMBER;',
-'',
-'            IF SQL%ROWCOUNT = 0 THEN',
-'                RAISE_APPLICATION_ERROR(-20003,',
-'                    ''Attribute changed or unavailable. Reopen the dialog.'');',
-'            END IF;',
-'    END CASE;',
+'    apps.adre_create_inv_item.p_save_section_attribute',
+'    (',
+'        p_item_section_id       => :P120_ITEM_SECTION_ID,',
+'        p_apex_row_status       => :APEX$ROW_STATUS,',
+'        p_attribute_code        => :ATTRIBUTE_CODE,',
+'        p_attribute_name        => :ATTRIBUTE_NAME,',
+'        p_attribute_data_type   => :ATTRIBUTE_DATA_TYPE,',
+'        p_description           => :DESCRIPTION,',
+'        p_default_value         => :DEFAULT_VALUE,',
+'        p_unit_of_measure       => :UNIT_OF_MEASURE,',
+'        p_required_flag         => :REQUIRED_FLAG,',
+'        p_active_flag           => :ACTIVE_FLAG,',
+'        p_ebs_attribute_name    => :EBS_ATTRIBUTE_NAME,',
+'        p_ebs_attribute_group   => :EBS_ATTRIBUTE_GROUP,',
+'        p_item_attribute_id     => :ITEM_ATTRIBUTE_ID,',
+'        p_display_sequence      => :DISPLAY_SEQUENCE,',
+'        p_record_version_number => :RECORD_VERSION_NUMBER',
+'    );',
 'END;'))
 ,p_attribute_05=>'N'
 ,p_attribute_06=>'Y'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
 ,p_internal_uid=>344931164465144907
+);
+end;
+/
+prompt --application/pages/page_00125
+begin
+wwv_flow_imp_page.create_page(
+ p_id=>125
+,p_name=>'Org per Item Type'
+,p_alias=>'CATEGORIES-PER-ORGANIZATION'
+,p_page_mode=>'MODAL'
+,p_step_title=>'Org per Item Type'
+,p_autocomplete_on_off=>'OFF'
+,p_page_template_options=>'#DEFAULT#'
+,p_protection_level=>'C'
+,p_page_component_map=>'21'
+,p_last_updated_by=>'JCALZADILLA'
+,p_last_upd_yyyymmddhh24miss=>'20261027214150'
+);
+wwv_flow_imp_page.create_page_plug(
+ p_id=>wwv_flow_imp.id(46161724836919274)
+,p_plug_name=>'Breadcrumb'
+,p_region_template_options=>'#DEFAULT#:t-BreadcrumbRegion--useBreadcrumbTitle'
+,p_component_template_options=>'#DEFAULT#'
+,p_plug_template=>wwv_flow_imp.id(1260732478866607775)
+,p_plug_display_sequence=>10
+,p_menu_id=>wwv_flow_imp.id(89905040093993)
+,p_plug_source_type=>'NATIVE_BREADCRUMB'
+,p_menu_template_id=>wwv_flow_imp.id(1260794822792607816)
+);
+wwv_flow_imp_page.create_page_plug(
+ p_id=>wwv_flow_imp.id(377221318276694680)
+,p_plug_name=>'Categories per Organization.'
+,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
+,p_component_template_options=>'#DEFAULT#'
+,p_plug_template=>wwv_flow_imp.id(1260720086548607771)
+,p_plug_display_sequence=>20
+,p_query_type=>'TABLE'
+,p_query_table=>'ADRE_INV_ITEM_ORG_CAT_SET'
+,p_query_where=>'EBS_ORGANIZATION_ID = :P125_ORG_ID'
+,p_include_rowid_column=>false
+,p_plug_source_type=>'NATIVE_IG'
+,p_ajax_items_to_submit=>'P125_ORG_ID'
+,p_prn_content_disposition=>'ATTACHMENT'
+,p_prn_units=>'INCHES'
+,p_prn_paper_size=>'LETTER'
+,p_prn_width=>11
+,p_prn_height=>8.5
+,p_prn_orientation=>'HORIZONTAL'
+,p_prn_page_header=>'Categories per Organization'
+,p_prn_page_header_font_color=>'#000000'
+,p_prn_page_header_font_family=>'Helvetica'
+,p_prn_page_header_font_weight=>'normal'
+,p_prn_page_header_font_size=>'12'
+,p_prn_page_footer_font_color=>'#000000'
+,p_prn_page_footer_font_family=>'Helvetica'
+,p_prn_page_footer_font_weight=>'normal'
+,p_prn_page_footer_font_size=>'12'
+,p_prn_header_bg_color=>'#EEEEEE'
+,p_prn_header_font_color=>'#000000'
+,p_prn_header_font_family=>'Helvetica'
+,p_prn_header_font_weight=>'bold'
+,p_prn_header_font_size=>'10'
+,p_prn_body_bg_color=>'#FFFFFF'
+,p_prn_body_font_color=>'#000000'
+,p_prn_body_font_family=>'Helvetica'
+,p_prn_body_font_weight=>'normal'
+,p_prn_body_font_size=>'10'
+,p_prn_border_width=>.5
+,p_prn_page_header_alignment=>'CENTER'
+,p_prn_page_footer_alignment=>'CENTER'
+,p_prn_border_color=>'#666666'
+);
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(364974201283338342)
+,p_name=>'ACTIVE_FLAG'
+,p_source_type=>'DB_COLUMN'
+,p_source_expression=>'ACTIVE_FLAG'
+,p_data_type=>'VARCHAR2'
+,p_session_state_data_type=>'VARCHAR2'
+,p_is_query_only=>false
+,p_item_type=>'NATIVE_SELECT_LIST'
+,p_heading=>'Active Flag'
+,p_heading_alignment=>'LEFT'
+,p_display_sequence=>50
+,p_value_alignment=>'LEFT'
+,p_is_required=>true
+,p_lov_type=>'STATIC'
+,p_lov_source=>'STATIC:Yes;Y,No;N'
+,p_lov_display_extra=>true
+,p_lov_display_null=>true
+,p_enable_filter=>true
+,p_filter_operators=>'C:S:CASE_INSENSITIVE:REGEXP'
+,p_filter_is_required=>false
+,p_filter_text_case=>'MIXED'
+,p_filter_exact_match=>true
+,p_filter_lov_type=>'LOV'
+,p_use_as_row_header=>false
+,p_enable_sort_group=>true
+,p_enable_control_break=>true
+,p_enable_hide=>true
+,p_is_primary_key=>false
+,p_duplicate_value=>true
+,p_include_in_export=>true
+);
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(364974334830338343)
+,p_name=>'REQUIRED_FLAG'
+,p_source_type=>'DB_COLUMN'
+,p_source_expression=>'REQUIRED_FLAG'
+,p_data_type=>'VARCHAR2'
+,p_session_state_data_type=>'VARCHAR2'
+,p_is_query_only=>false
+,p_item_type=>'NATIVE_SELECT_LIST'
+,p_heading=>'Required Flag'
+,p_heading_alignment=>'LEFT'
+,p_display_sequence=>60
+,p_value_alignment=>'LEFT'
+,p_is_required=>true
+,p_lov_type=>'STATIC'
+,p_lov_source=>'STATIC:Yes;Y,No;N'
+,p_lov_display_extra=>true
+,p_lov_display_null=>true
+,p_enable_filter=>true
+,p_filter_operators=>'C:S:CASE_INSENSITIVE:REGEXP'
+,p_filter_is_required=>false
+,p_filter_text_case=>'MIXED'
+,p_filter_exact_match=>true
+,p_filter_lov_type=>'LOV'
+,p_use_as_row_header=>false
+,p_enable_sort_group=>true
+,p_enable_control_break=>true
+,p_enable_hide=>true
+,p_is_primary_key=>false
+,p_duplicate_value=>true
+,p_include_in_export=>true
+);
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(364974422250338344)
+,p_name=>'DISPLAY_SEQUENCE'
+,p_source_type=>'DB_COLUMN'
+,p_source_expression=>'DISPLAY_SEQUENCE'
+,p_data_type=>'NUMBER'
+,p_session_state_data_type=>'VARCHAR2'
+,p_is_query_only=>false
+,p_item_type=>'NATIVE_NUMBER_FIELD'
+,p_heading=>'Display Sequence'
+,p_heading_alignment=>'RIGHT'
+,p_display_sequence=>70
+,p_value_alignment=>'RIGHT'
+,p_attribute_03=>'left'
+,p_attribute_04=>'decimal'
+,p_is_required=>true
+,p_enable_filter=>true
+,p_filter_is_required=>false
+,p_filter_lov_type=>'NONE'
+,p_use_as_row_header=>false
+,p_enable_sort_group=>true
+,p_enable_control_break=>true
+,p_enable_hide=>true
+,p_is_primary_key=>false
+,p_duplicate_value=>true
+,p_include_in_export=>true
+);
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(364974590949338345)
+,p_name=>'APEX$ROW_ACTION'
+,p_session_state_data_type=>'VARCHAR2'
+,p_item_type=>'NATIVE_ROW_ACTION'
+,p_display_sequence=>20
+,p_use_as_row_header=>false
+);
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(364974656852338346)
+,p_name=>'APEX$ROW_SELECTOR'
+,p_session_state_data_type=>'VARCHAR2'
+,p_item_type=>'NATIVE_ROW_SELECTOR'
+,p_display_sequence=>10
+,p_attribute_01=>'Y'
+,p_attribute_02=>'Y'
+,p_attribute_03=>'N'
+,p_use_as_row_header=>false
+);
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(377221009590694677)
+,p_name=>'EBS_CATEGORY_SET_ID'
+,p_source_type=>'DB_COLUMN'
+,p_source_expression=>'EBS_CATEGORY_SET_ID'
+,p_data_type=>'NUMBER'
+,p_session_state_data_type=>'VARCHAR2'
+,p_is_query_only=>false
+,p_item_type=>'NATIVE_SELECT_LIST'
+,p_heading=>'Category'
+,p_heading_alignment=>'LEFT'
+,p_display_sequence=>40
+,p_value_alignment=>'LEFT'
+,p_is_required=>false
+,p_lov_type=>'SQL_QUERY'
+,p_lov_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'SELECT catset.category_set_name AS display_value,',
+'       catset.category_set_id AS return_value',
+'  FROM apps.mtl_category_sets_vl catset',
+' ORDER BY catset.category_set_name'))
+,p_lov_display_extra=>false
+,p_lov_display_null=>true
+,p_enable_filter=>true
+,p_filter_operators=>'C:S:CASE_INSENSITIVE:REGEXP'
+,p_filter_is_required=>false
+,p_filter_text_case=>'MIXED'
+,p_filter_exact_match=>true
+,p_filter_lov_type=>'LOV'
+,p_use_as_row_header=>false
+,p_enable_sort_group=>false
+,p_enable_hide=>true
+,p_is_primary_key=>true
+,p_duplicate_value=>true
+,p_include_in_export=>false
+);
+wwv_flow_imp_page.create_region_column(
+ p_id=>wwv_flow_imp.id(377221101539694678)
+,p_name=>'EBS_ORGANIZATION_ID'
+,p_source_type=>'DB_COLUMN'
+,p_source_expression=>'EBS_ORGANIZATION_ID'
+,p_data_type=>'NUMBER'
+,p_session_state_data_type=>'VARCHAR2'
+,p_is_query_only=>false
+,p_item_type=>'NATIVE_SELECT_LIST'
+,p_heading=>'Organization'
+,p_heading_alignment=>'LEFT'
+,p_display_sequence=>30
+,p_value_alignment=>'LEFT'
+,p_is_required=>false
+,p_lov_type=>'SQL_QUERY'
+,p_lov_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'SELECT mp.organization_code || '' - '' || hou.name AS display_value,',
+'       mp.organization_id AS return_value',
+'  FROM apps.mtl_parameters mp,',
+'       apps.hr_all_organization_units hou',
+' WHERE hou.organization_id = mp.organization_id',
+'   AND (hou.date_from IS NULL OR hou.date_from <= TRUNC(SYSDATE))',
+'   AND (hou.date_to IS NULL OR hou.date_to >= TRUNC(SYSDATE))',
+' ORDER BY mp.organization_code'))
+,p_lov_display_extra=>false
+,p_lov_display_null=>true
+,p_enable_filter=>true
+,p_filter_operators=>'C:S:CASE_INSENSITIVE:REGEXP'
+,p_filter_is_required=>false
+,p_filter_text_case=>'MIXED'
+,p_filter_exact_match=>true
+,p_filter_lov_type=>'LOV'
+,p_use_as_row_header=>false
+,p_enable_sort_group=>false
+,p_enable_hide=>true
+,p_is_primary_key=>true
+,p_duplicate_value=>true
+,p_include_in_export=>false
+);
+wwv_flow_imp_page.create_interactive_grid(
+ p_id=>wwv_flow_imp.id(377221130385694679)
+,p_internal_uid=>742121804697035975
+,p_is_editable=>true
+,p_edit_operations=>'i:u:d'
+,p_lost_update_check_type=>'VALUES'
+,p_add_row_if_empty=>true
+,p_submit_checked_rows=>false
+,p_lazy_loading=>false
+,p_requires_filter=>false
+,p_select_first_row=>true
+,p_fixed_row_height=>true
+,p_pagination_type=>'SCROLL'
+,p_show_total_row_count=>true
+,p_show_toolbar=>true
+,p_enable_save_public_report=>false
+,p_enable_subscriptions=>true
+,p_enable_flashback=>true
+,p_define_chart_view=>true
+,p_enable_download=>true
+,p_download_formats=>'CSV:HTML:XLSX:PDF'
+,p_enable_mail_download=>true
+,p_fixed_header=>'PAGE'
+,p_show_icon_view=>false
+,p_show_detail_view=>false
+);
+wwv_flow_imp_page.create_ig_report(
+ p_id=>wwv_flow_imp.id(364983442967339639)
+,p_interactive_grid_id=>wwv_flow_imp.id(377221130385694679)
+,p_static_id=>'3576601'
+,p_type=>'PRIMARY'
+,p_default_view=>'GRID'
+,p_show_row_number=>false
+,p_settings_area_expanded=>true
+);
+wwv_flow_imp_page.create_ig_report_view(
+ p_id=>wwv_flow_imp.id(364983697039339639)
+,p_report_id=>wwv_flow_imp.id(364983442967339639)
+,p_view_type=>'GRID'
+,p_stretch_columns=>true
+,p_srv_exclude_null_values=>false
+,p_srv_only_display_columns=>true
+,p_edit_mode=>false
+);
+wwv_flow_imp_page.create_ig_report_column(
+ p_id=>wwv_flow_imp.id(364984146924339640)
+,p_view_id=>wwv_flow_imp.id(364983697039339639)
+,p_display_seq=>2
+,p_column_id=>wwv_flow_imp.id(377221101539694678)
+,p_is_visible=>false
+,p_is_frozen=>false
+,p_width=>200
+);
+wwv_flow_imp_page.create_ig_report_column(
+ p_id=>wwv_flow_imp.id(364985088549339643)
+,p_view_id=>wwv_flow_imp.id(364983697039339639)
+,p_display_seq=>3
+,p_column_id=>wwv_flow_imp.id(377221009590694677)
+,p_is_visible=>true
+,p_is_frozen=>false
+,p_width=>176
+);
+wwv_flow_imp_page.create_ig_report_column(
+ p_id=>wwv_flow_imp.id(364985997160339646)
+,p_view_id=>wwv_flow_imp.id(364983697039339639)
+,p_display_seq=>4
+,p_column_id=>wwv_flow_imp.id(364974201283338342)
+,p_is_visible=>true
+,p_is_frozen=>false
+);
+wwv_flow_imp_page.create_ig_report_column(
+ p_id=>wwv_flow_imp.id(364986788389339649)
+,p_view_id=>wwv_flow_imp.id(364983697039339639)
+,p_display_seq=>5
+,p_column_id=>wwv_flow_imp.id(364974334830338343)
+,p_is_visible=>true
+,p_is_frozen=>false
+);
+wwv_flow_imp_page.create_ig_report_column(
+ p_id=>wwv_flow_imp.id(364987696349339652)
+,p_view_id=>wwv_flow_imp.id(364983697039339639)
+,p_display_seq=>6
+,p_column_id=>wwv_flow_imp.id(364974422250338344)
+,p_is_visible=>true
+,p_is_frozen=>false
+,p_width=>213
+);
+wwv_flow_imp_page.create_ig_report_column(
+ p_id=>wwv_flow_imp.id(364988510467339654)
+,p_view_id=>wwv_flow_imp.id(364983697039339639)
+,p_display_seq=>1
+,p_column_id=>wwv_flow_imp.id(364974590949338345)
+,p_is_visible=>true
+,p_is_frozen=>true
+,p_width=>84.233
+);
+wwv_flow_imp_page.create_page_item(
+ p_id=>wwv_flow_imp.id(46161661597919273)
+,p_name=>'P125_ORG_NAME'
+,p_item_sequence=>20
+,p_item_plug_id=>wwv_flow_imp.id(377221318276694680)
+,p_prompt=>'Organization'
+,p_display_as=>'NATIVE_DISPLAY_ONLY'
+,p_field_template=>wwv_flow_imp.id(1260790714796607811)
+,p_item_template_options=>'#DEFAULT#'
+,p_attribute_01=>'Y'
+,p_attribute_02=>'VALUE'
+,p_attribute_04=>'Y'
+,p_attribute_05=>'PLAIN'
+);
+wwv_flow_imp_page.create_page_item(
+ p_id=>wwv_flow_imp.id(46162140040919278)
+,p_name=>'P125_ORG_ID'
+,p_item_sequence=>10
+,p_item_plug_id=>wwv_flow_imp.id(377221318276694680)
+,p_display_as=>'NATIVE_HIDDEN'
+,p_attribute_01=>'Y'
+);
+wwv_flow_imp_page.create_page_da_event(
+ p_id=>wwv_flow_imp.id(46161545907919272)
+,p_name=>'New'
+,p_event_sequence=>10
+,p_bind_type=>'bind'
+,p_execution_type=>'IMMEDIATE'
+,p_bind_event_type=>'ready'
+);
+wwv_flow_imp_page.create_page_da_action(
+ p_id=>wwv_flow_imp.id(46161410910919271)
+,p_event_id=>wwv_flow_imp.id(46161545907919272)
+,p_event_result=>'TRUE'
+,p_action_sequence=>10
+,p_execute_on_page_init=>'N'
+,p_action=>'NATIVE_EXECUTE_PLSQL_CODE'
+,p_attribute_01=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'SELECT mp.organization_code || '' - '' || hou.name ',
+'INTO :P125_ORG_NAME',
+'FROM   apps.mtl_parameters mp,',
+'       apps.hr_all_organization_units hou',
+'WHERE  hou.organization_id = mp.organization_id',
+'AND    (hou.date_from IS NULL OR hou.date_from <= TRUNC(SYSDATE))',
+'AND    (hou.date_to IS NULL OR hou.date_to >= TRUNC(SYSDATE))',
+'AND   hou.organization_id = :P125_ORG_ID'))
+,p_attribute_02=>'P125_ORG_ID'
+,p_attribute_03=>'P125_ORG_NAME'
+,p_attribute_04=>'N'
+,p_attribute_05=>'PLSQL'
+,p_wait_for_result=>'Y'
 );
 end;
 /
@@ -33124,7 +33234,7 @@ end;
 /
 prompt --application/end_environment
 begin
-wwv_flow_imp.import_end(p_auto_install_sup_obj => nvl(wwv_flow_application_install.get_auto_install_sup_obj, true));
+wwv_flow_imp.import_end(p_auto_install_sup_obj => nvl(wwv_flow_application_install.get_auto_install_sup_obj, false));
 commit;
 end;
 /
