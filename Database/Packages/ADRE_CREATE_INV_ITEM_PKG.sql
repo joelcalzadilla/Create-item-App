@@ -3,13 +3,8 @@
 -- Package     : APPS.ADRE_CREATE_INV_ITEM
 -- Component   : Package Specification
 -- Author      : Joel Calzadilla
-<<<<<<< HEAD
 -- Date        : 03-NOV-2026
 -- Release     : V41 (Rebase organization UOMs when the Item Type changes)
-=======
--- Date        : 30-OCT-2026
--- Release     : V37
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
 -- Purpose     : Create and configure Inventory Items from OPS requests.
 -- Design      : Resolve organizations, templates, attributes and categories
 --               from OPS configuration and Oracle EBS metadata.
@@ -24,11 +19,8 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --         p_user_id NUMBER; p_resp_id NUMBER; p_resp_appl_id NUMBER;
     --         p_commit_flag VARCHAR2.
     -- Outputs: x_return_status VARCHAR2; x_message CLOB.
-<<<<<<< HEAD
     -- Called by: p_apex_submit_request within this package; controlled external EBS runner.
     -- No direct APEX page call.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE pcd_process_request
     (
         p_item_request_id IN NUMBER,
@@ -43,21 +35,14 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     -- Function: fnc_release_version
     -- Purpose: Return the installed package release identifier.
     -- Inputs: None. Return: VARCHAR2.
-<<<<<<< HEAD
     -- Called by: f_release_version (private wrapper) and external SQL diagnostics.
     -- No direct APEX page call.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     FUNCTION fnc_release_version RETURN VARCHAR2;
 
     -- Public routines used by Oracle APEX request processes.
     -- Procedure: p_save_draft_request
-<<<<<<< HEAD
     -- Purpose: Save a draft, initialize Master data, and resolve organization
     --          Primary UOMs for the current Item Type.
-=======
-    -- Purpose: Save a draft and initialize configured Master data.
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     -- Inputs: p_request_number VARCHAR2; p_request_status VARCHAR2;
     --         p_item_type_id NUMBER; p_base_part_number VARCHAR2;
     --         p_item_number VARCHAR2; p_part_status VARCHAR2;
@@ -66,10 +51,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --         p_requested_creation_date DATE; p_forecast_flag VARCHAR2;
     --         p_app_user VARCHAR2.
     -- Input/Output: p_item_request_id NUMBER; p_item_status_code VARCHAR2.
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, PROC_SAVE_DRAFT.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_save_draft_request
     (
         p_item_request_id   IN OUT  ops.adre_inv_item_request.item_request_id%TYPE,
@@ -89,7 +71,6 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
         p_forecast_flag     IN      ops.adre_inv_item_request.forecast_flag%TYPE,
         p_app_user          IN      ops.adre_inv_item_request.created_by%TYPE
     );
-<<<<<<< HEAD
     -- Procedure: p_save_organization_primary_uom
     -- Purpose: Save one approved input UOM for a staged organization and
     --          convert staged Target dimensions into the new length UOM.
@@ -106,16 +87,11 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
         p_record_version_number   IN OUT ops.adre_inv_item_request_org.record_version_number%TYPE
     );
 
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     -- Procedure: p_add_target_organization
     -- Purpose: Assign a valid Target to a draft and stage defaults.
     -- Inputs: p_item_request_id NUMBER; p_target_org_id NUMBER;
     --         p_app_user VARCHAR2.
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, PROC_ADD_TARGET_ORG.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_add_target_organization 
     (
         p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
@@ -133,10 +109,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   x_return_status VARCHAR2 - S, E, or U from EBS processing.
     --   x_message CLOB - Processing details.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, PROC_SEND_TO_EBS.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_apex_submit_request
     (
         p_item_request_id IN NUMBER,
@@ -153,10 +126,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     -- Return:
     --   VARCHAR2 - Y when deletion is allowed; otherwise N.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, DELETE_REQUEST button condition.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     FUNCTION fnc_apex_request_can_delete
     (
         p_item_request_id IN NUMBER
@@ -169,10 +139,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     -- Input Parameters:
     --   p_item_request_id NUMBER - Request selected in APEX.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, PROC_DELETE_REQUEST.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_apex_delete_request
     (
         p_item_request_id IN NUMBER
@@ -187,10 +154,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     -- Input/Output Parameters:
     --   x_* - General request fields; preserved when no row is found.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, Load Request.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_apex_load_request
     (
         p_item_request_id IN NUMBER,
@@ -220,10 +184,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     -- Output Parameters:
     --   x_target_code VARCHAR2 - Selected EBS organization code.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, PROC_VALIDATE_TARGET_SELECTION.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_apex_validate_target_selection
     (
         p_item_request_id IN NUMBER,
@@ -247,10 +208,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   p_ebs_category_id       NUMBER - Resolved EBS category key.
     --   p_record_version_number NUMBER - Optimistic row version.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, Categories · MAS - IG - Save Interactive Grid Data.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_save_master_category
     (
         p_item_request_id       IN NUMBER,
@@ -279,10 +237,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   p_item_attr_value_id    NUMBER - Existing/new value row key.
     --   p_record_version_number NUMBER - Optimistic row version.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, Attributes · MAS - IG - Save Interactive Grid Data.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_save_master_attribute
     (
         p_item_request_id       IN NUMBER,
@@ -312,10 +267,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   p_ebs_category_id        NUMBER - Resolved EBS category key.
     --   p_record_version_number  NUMBER - Optimistic row version.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, Categories · Target - IG - Save Interactive Grid Data.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_save_target_category
     (
         p_item_request_id         IN NUMBER,
@@ -333,12 +285,8 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     -- Procedure: p_save_target_attribute
     -- Purpose:
     --   Validates and saves one configured Target attribute, including
-<<<<<<< HEAD
     --   Target-specific Planner and UOM validation. WIDTH and TARGET_LENGTH
     --   use the Target Primary UOM when it belongs to the LENGTH class.
-=======
-    --   Target-specific Planner and UOM validation.
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     -- Input Parameters:
     --   p_item_request_id         NUMBER - Current request identifier.
     --   p_selected_request_org_id NUMBER - Target selected on the page.
@@ -352,10 +300,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   p_item_attr_value_id      NUMBER - Existing/new value row key.
     --   p_record_version_number   NUMBER - Optimistic row version.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20, Attributes · Target - IG - Save Interactive Grid Data.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_save_target_attribute
     (
         p_item_request_id         IN NUMBER,
@@ -393,10 +338,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   p_display_sequence     NUMBER - Existing/new display order.
     --   p_record_version_number NUMBER - Optimistic row version.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 120, Section Attributes - Save Interactive Grid Data.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_save_section_attribute
     (
         p_item_section_id      IN ops.adre_inv_item_section.item_section_id%TYPE,
@@ -426,10 +368,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   x_attribute_name VARCHAR2 - Display name for the form.
     --   x_attribute_data_type VARCHAR2 - Configured attribute data type.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 22, Load Attribute Metadata.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_load_attribute_metadata
     (
         p_item_attribute_id     IN     ops.adre_inv_item_attribute.item_attribute_id%TYPE,
@@ -454,10 +393,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   x_assignment_status VARCHAR2 - Draft assignment status.
     --   x_last_updated_by VARCHAR2 - Last updating actor.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 24, PROC_RESOLVE_CATEGORY_ID.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_prepare_master_category
     (
         p_item_category_id       IN     ops.adre_inv_item_category.item_category_id%TYPE,
@@ -492,10 +428,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   x_creation_date VARCHAR2 - Formatted creation timestamp.
     --   x_record_version_number NUMBER - Form row version.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 26, PROC_PREPARE_TARGET_CATEGORY.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_prepare_target_category
     (
         p_item_request_id        IN     ops.adre_inv_item_request.item_request_id%TYPE,
@@ -521,10 +454,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   p_item_request_id NUMBER - Item request identifier.
     --   p_request_org_id NUMBER - TARGET request organization identifier.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 32, PROC_REMOVE_TARGET_ORG.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_remove_target_organization
     (
         p_item_request_id  IN ops.adre_inv_item_request.item_request_id%TYPE,
@@ -540,10 +470,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   p_decision_comments CLOB - Entered approval comments.
     --   p_app_user VARCHAR2 - APEX actor name.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 35, PROC_SAVE_APPROVAL_DECISION.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_save_approval_decision
     (
         p_item_approval_id  IN ops.adre_inv_item_approval.item_approval_id%TYPE,
@@ -565,10 +492,7 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     --   x_approval_status VARCHAR2 - Current approval status.
     --   x_decision_comments CLOB - Saved approval comments.
     -- ---------------------------------------------------------------------
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 35, Load Approval.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     PROCEDURE p_load_approval
     (
         p_item_approval_id  IN     ops.adre_inv_item_approval.item_approval_id%TYPE,
@@ -587,13 +511,8 @@ END adre_create_inv_item;
 -- Package     : APPS.ADRE_CREATE_INV_ITEM
 -- Component   : Package Body
 -- Author      : Joel Calzadilla
-<<<<<<< HEAD
 -- Date        : 03-NOV-2026
 -- Release     : V41 (Rebase organization UOMs when the Item Type changes)
-=======
--- Date        : 30-OCT-2026
--- Release     : V37
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
 -- Purpose     : Create and configure Inventory Items from OPS requests.
 -- Design      : Resolve organizations, templates, attributes and categories
 --               from OPS configuration and Oracle EBS metadata.
@@ -8136,11 +8055,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     RETURN VARCHAR2
     IS
     BEGIN
-<<<<<<< HEAD
         RETURN 'V41';
-=======
-        RETURN 'V37';
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     EXCEPTION
         WHEN OTHERS THEN
             pcd_write_log
@@ -8173,12 +8088,8 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
 
 
     -- Procedure: p_save_draft_request
-<<<<<<< HEAD
     -- Purpose: Save a draft, initialize Master assignments, and resolve
     --          organization Primary UOMs for the current Item Type.
-=======
-    -- Purpose: Save a draft and initialize configured Master assignments.
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     -- Inputs: p_request_number VARCHAR2; p_request_status VARCHAR2;
     --         p_item_type_id NUMBER; p_base_part_number VARCHAR2;
     --         p_item_number VARCHAR2; p_part_status VARCHAR2;
@@ -8350,7 +8261,6 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
   
 --
 
-<<<<<<< HEAD
     -- Called by: APEX application 139, page 20,
     --            DA_SAVE_TARGET_PRIMARY_UOM / TA_SAVE_ORGANIZATION_PRIMARY_UOM.
     -- The APEX request owns the transaction; this procedure does not COMMIT.
@@ -8492,141 +8402,198 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             raise_application_error(-20964, 'Item request no longer exists.');
     END p_save_organization_primary_uom;
 
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
     -- Procedure: p_add_target_organization
     -- Purpose: Add a configured Target to a draft and stage defaults.
     -- Inputs: p_item_request_id NUMBER; p_target_org_id NUMBER;
     --         p_app_user VARCHAR2.
-PROCEDURE p_add_target_organization (
-  p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
-  p_target_org_id   IN ops.adre_inv_item_request_org.ebs_organization_id%TYPE,
-  p_app_user        IN ops.adre_inv_item_request_org.created_by%TYPE
-) IS
-  l_count  NUMBER;
-  l_org_id NUMBER;
-  l_status ops.adre_inv_item_request.request_status%TYPE;
-  l_item_type_id ops.adre_inv_item_request.item_type_id%TYPE;
-  l_header_uom ops.adre_inv_item_request.primary_uom_code%TYPE;
-  l_default_uom VARCHAR2(30);
+PROCEDURE p_add_target_organization
+(
+    p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
+    p_target_org_id   IN ops.adre_inv_item_request_org.ebs_organization_id%TYPE,
+    p_app_user        IN ops.adre_inv_item_request_org.created_by%TYPE
+)
+IS
+    l_count       NUMBER;
+    l_org_id      NUMBER;
+    l_status      ops.adre_inv_item_request.request_status%TYPE;
+    l_item_type_id ops.adre_inv_item_request.item_type_id%TYPE;
+    l_header_uom  ops.adre_inv_item_request.primary_uom_code%TYPE;
+    l_default_uom VARCHAR2(30);
 BEGIN
-  -- Add TARGET organization and initialize configured defaults.
+    -- Add TARGET organization and initialize configured defaults.
+    IF p_item_request_id IS NULL OR p_target_org_id IS NULL THEN
+        RAISE_APPLICATION_ERROR
+        (
+            -20001,
+            'Select a request and a target organization.'
+        );
+    END IF;
 
-  IF p_item_request_id IS NULL OR p_target_org_id IS NULL THEN
-    raise_application_error(
-      -20001,
-      'Select a draft request and a target organization.'
+    SELECT req.request_status,
+           req.item_type_id,
+           req.primary_uom_code
+      INTO l_status,
+           l_item_type_id,
+           l_header_uom
+      FROM ops.adre_inv_item_request req
+     WHERE req.item_request_id = p_item_request_id
+       FOR UPDATE;
+
+    IF NVL(l_status, '?') NOT IN ('DRAFT', 'ERROR') THEN
+        RAISE_APPLICATION_ERROR
+        (
+            -20002,
+            'Request must be DRAFT or ERROR.'
+        );
+    END IF;
+
+    -- Block changes if any organization has an EBS item or API history.
+    SELECT COUNT(*)
+      INTO l_count
+      FROM ops.adre_inv_item_request_org reqorg
+     WHERE reqorg.item_request_id = p_item_request_id
+       AND
+       (
+           reqorg.ebs_inventory_item_id IS NOT NULL
+           OR EXISTS
+           (
+               SELECT 1
+                 FROM ops.adre_inv_item_api_log apilog
+                WHERE apilog.request_org_id = reqorg.request_org_id
+           )
+       );
+
+    IF l_count > 0 THEN
+        RAISE_APPLICATION_ERROR
+        (
+            -20005,
+            'Organization changes are not allowed after EBS or API history.'
+        );
+    END IF;
+
+    SELECT COUNT(*)
+      INTO l_count
+      FROM ops.adre_inv_item_request req,
+           ops.adre_inv_item_request_org master_org,
+           apps.mtl_parameters target_mp,
+           apps.hr_all_organization_units target_hou
+     WHERE req.item_request_id = p_item_request_id
+       AND req.request_status IN ('DRAFT', 'ERROR')
+       AND master_org.item_request_id = req.item_request_id
+       AND master_org.organization_role = 'MASTER'
+       AND target_mp.organization_id = p_target_org_id
+       AND target_mp.master_organization_id =
+           master_org.ebs_organization_id
+       AND target_mp.organization_id <> master_org.ebs_organization_id
+       AND target_hou.organization_id = target_mp.organization_id
+       AND
+       (
+           target_hou.date_from IS NULL
+           OR target_hou.date_from <= TRUNC(SYSDATE)
+       )
+       AND
+       (
+           target_hou.date_to IS NULL
+           OR target_hou.date_to >= TRUNC(SYSDATE)
+       );
+
+    IF l_count <> 1 THEN
+        RAISE_APPLICATION_ERROR
+        (
+            -20002,
+            'The target organization is not valid for this request.'
+        );
+    END IF;
+
+    SELECT COUNT(*)
+      INTO l_count
+      FROM ops.adre_inv_item_request_org reqorg
+     WHERE reqorg.item_request_id = p_item_request_id
+       AND reqorg.organization_role = 'TARGET'
+       AND reqorg.ebs_organization_id = p_target_org_id;
+
+    IF l_count > 0 THEN
+        RAISE_APPLICATION_ERROR
+        (
+            -20003,
+            'This target organization is already assigned.'
+        );
+    END IF;
+
+    l_default_uom := fnc_default_primary_uom
+    (
+        l_item_type_id,
+        p_app_user
     );
-  END IF;
 
-  SELECT request_status, item_type_id, primary_uom_code
-    INTO l_status, l_item_type_id, l_header_uom
-    FROM ops.adre_inv_item_request
-   WHERE item_request_id = p_item_request_id
-   FOR UPDATE;
+    INSERT INTO ops.adre_inv_item_request_org
+    (
+        item_request_id,
+        organization_role,
+        ebs_organization_id,
+        ebs_template_id,
+        primary_uom_code,
+        assignment_status,
+        created_by,
+        creation_date,
+        last_updated_by,
+        last_update_date,
+        record_version_number
+    )
+    VALUES
+    (
+        p_item_request_id,
+        'TARGET',
+        p_target_org_id,
+        NULL,
+        NVL(l_default_uom, l_header_uom),
+        'DRAFT',
+        p_app_user,
+        SYSDATE,
+        p_app_user,
+        SYSDATE,
+        1
+    )
+    RETURNING request_org_id INTO l_org_id;
 
-  IF nvl(l_status, '?') <> 'DRAFT' THEN
-    raise_application_error(-20002, 'Request must be DRAFT.');
-  END IF;
-
-  SELECT count(*)
-    INTO l_count
-    FROM ops.adre_inv_item_request req,
-         ops.adre_inv_item_request_org master_org,
-         apps.mtl_parameters target_mp,
-         apps.hr_all_organization_units target_hou
-   WHERE req.item_request_id = p_item_request_id
-     AND req.request_status = 'DRAFT'
-     AND master_org.item_request_id = req.item_request_id
-     AND master_org.organization_role = 'MASTER'
-     AND target_mp.organization_id = p_target_org_id
-     AND target_mp.master_organization_id =
-         master_org.ebs_organization_id
-     AND target_mp.organization_id <> master_org.ebs_organization_id
-     AND target_hou.organization_id = target_mp.organization_id
-     AND (target_hou.date_from IS NULL
-          OR target_hou.date_from <= trunc(SYSDATE))
-     AND (target_hou.date_to IS NULL
-          OR target_hou.date_to >= trunc(SYSDATE));
-
-  IF l_count <> 1 THEN
-    raise_application_error(
-      -20002,
-      'The target organization is not valid for this draft request.'
-    );
-  END IF;
-
-  SELECT count(*)
-    INTO l_count
-    FROM ops.adre_inv_item_request_org
-   WHERE item_request_id = p_item_request_id
-     AND organization_role = 'TARGET'
-     AND ebs_organization_id = p_target_org_id;
-
-  IF l_count > 0 THEN
-    raise_application_error(
-      -20003,
-      'This target organization is already assigned.'
-    );
-  END IF;
-
-  l_default_uom := fnc_default_primary_uom(l_item_type_id, p_app_user);
-  INSERT INTO ops.adre_inv_item_request_org
-    (item_request_id,
-     organization_role,
-     ebs_organization_id,
-     ebs_template_id,
-     primary_uom_code,
-     assignment_status,
-     created_by,
-     creation_date,
-     last_updated_by,
-     last_update_date,
-     record_version_number)
-  VALUES
-    (p_item_request_id,
-     'TARGET',
-     p_target_org_id,
-     NULL,
-     NVL(l_default_uom, l_header_uom),
-     'DRAFT',
-     p_app_user,
-     SYSDATE,
-     p_app_user,
-     SYSDATE,
-     1)
-  RETURNING request_org_id INTO l_org_id;
-
-  INSERT INTO ops.adre_inv_item_attr_value
-    (request_org_id,
-     item_attribute_id,
-     attribute_value,
-     value_uom_code,
-     value_status)
-  SELECT l_org_id,
-         a.item_attribute_id,
-         trim(nvl(t.default_value, a.default_value)),
-         upper(trim(a.unit_of_measure)),
-         'DRAFT'
-    FROM ops.adre_inv_item_request q,
-         ops.adre_inv_item_type_attr t,
-         ops.adre_inv_item_attribute a
-   WHERE q.item_request_id = p_item_request_id
-     AND t.item_type_id = q.item_type_id
-     AND t.active_flag = 'Y'
-     AND t.organization_scope IN ('TARGET', 'BOTH')
-     AND a.item_attribute_id = t.item_attribute_id
-     AND a.active_flag = 'Y'
-     AND trim(nvl(t.default_value, a.default_value)) IS NOT NULL
-     AND NOT EXISTS
-         (SELECT 1
-            FROM ops.adre_inv_item_attr_value x
-           WHERE x.request_org_id = l_org_id
-             AND x.item_attribute_id = a.item_attribute_id);
+    INSERT INTO ops.adre_inv_item_attr_value
+    (
+        request_org_id,
+        item_attribute_id,
+        attribute_value,
+        value_uom_code,
+        value_status
+    )
+    SELECT l_org_id,
+           att.item_attribute_id,
+           TRIM(NVL(typatt.default_value, att.default_value)),
+           UPPER(TRIM(att.unit_of_measure)),
+           'DRAFT'
+      FROM ops.adre_inv_item_request req,
+           ops.adre_inv_item_type_attr typatt,
+           ops.adre_inv_item_attribute att
+     WHERE req.item_request_id = p_item_request_id
+       AND typatt.item_type_id = req.item_type_id
+       AND typatt.active_flag = 'Y'
+       AND typatt.organization_scope IN ('TARGET', 'BOTH')
+       AND att.item_attribute_id = typatt.item_attribute_id
+       AND att.active_flag = 'Y'
+       AND TRIM(NVL(typatt.default_value, att.default_value)) IS NOT NULL
+       AND NOT EXISTS
+           (
+               SELECT 1
+                 FROM ops.adre_inv_item_attr_value val
+                WHERE val.request_org_id = l_org_id
+                  AND val.item_attribute_id = att.item_attribute_id
+           );
 
 EXCEPTION
-  WHEN no_data_found THEN
-    raise_application_error(-20004, 'Request no longer exists.');
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR
+        (
+            -20004,
+            'Request no longer exists.'
+        );
 END p_add_target_organization;
 
     -- ---------------------------------------------------------------------
@@ -8663,18 +8630,14 @@ END p_add_target_organization;
             );
         END IF;
 
-<<<<<<< HEAD
         -- Keep values from earlier Item Types staged for review; only current
         -- configured attributes are eligible for EBS processing.
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
         UPDATE ops.adre_inv_item_attr_value attval
            SET attval.value_status = 'READY'
          WHERE attval.value_status = 'DRAFT'
            AND EXISTS
                (
                    SELECT 1
-<<<<<<< HEAD
                      FROM ops.adre_inv_item_request_org reqorg,
                           ops.adre_inv_item_request req,
                           ops.adre_inv_item_type_attr typatt
@@ -8686,11 +8649,6 @@ END p_add_target_organization;
                       AND typatt.organization_scope IN
                           (reqorg.organization_role, 'BOTH')
                       AND typatt.active_flag = 'Y'
-=======
-                     FROM ops.adre_inv_item_request_org reqorg
-                    WHERE reqorg.request_org_id = attval.request_org_id
-                      AND reqorg.item_request_id = p_item_request_id
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
                );
 
         UPDATE ops.adre_inv_item_category itecat
@@ -9515,10 +9473,7 @@ END p_add_target_organization;
         l_date           DATE;
         l_value          ops.adre_inv_item_attr_value.attribute_value%TYPE;
         l_uom            ops.adre_inv_item_attr_value.value_uom_code%TYPE;
-<<<<<<< HEAD
         l_primary_uom    ops.adre_inv_item_request_org.primary_uom_code%TYPE;
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
 
         -- -----------------------------------------------------------------
         -- Procedure: fail
@@ -9554,22 +9509,14 @@ END p_add_target_organization;
                a.attribute_code,
                NVL(ta.required_flag, a.required_flag),
                ro.ebs_organization_id,
-<<<<<<< HEAD
                a.unit_of_measure,
                ro.primary_uom_code
-=======
-               a.unit_of_measure
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
           INTO l_type,
                l_attribute_code,
                l_required,
                l_organization_id,
-<<<<<<< HEAD
                l_uom,
                l_primary_uom
-=======
-               l_uom
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
           FROM ops.adre_inv_item_request q,
                ops.adre_inv_item_request_org ro,
                ops.adre_inv_item_type_attr ta,
@@ -9593,7 +9540,6 @@ END p_add_target_organization;
                      WHEN l_value IS NOT NULL THEN UPPER(TRIM(l_uom))
                  END;
 
-<<<<<<< HEAD
         IF l_value IS NOT NULL
            AND l_attribute_code IN ('WIDTH', 'TARGET_LENGTH')
            AND l_primary_uom IS NOT NULL
@@ -9614,8 +9560,6 @@ END p_add_target_organization;
             END IF;
         END IF;
 
-=======
->>>>>>> c72b11a0eebbb35f0feda34a36ec5f82e1537fa3
         IF l_value IS NULL AND l_required = 'Y' THEN
             fail('Value required.');
         END IF;
@@ -10146,7 +10090,7 @@ END p_add_target_organization;
           FROM ops.adre_inv_item_request req,
                ops.adre_inv_item_request_org reqorg
          WHERE req.item_request_id = p_item_request_id
-           AND req.request_status = 'DRAFT'
+           AND req.request_status IN ('DRAFT', 'ERROR')
            AND reqorg.item_request_id = req.item_request_id
            AND reqorg.request_org_id = p_request_org_id
            AND reqorg.organization_role = 'TARGET'

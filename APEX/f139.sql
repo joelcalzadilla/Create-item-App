@@ -33,7 +33,7 @@ prompt APPLICATION 139 - ADRE Inventory Item Creation
 -- Application Export:
 --   Application:     139
 --   Name:            ADRE Inventory Item Creation
---   Date and Time:   14:01 Wednesday November 4, 2026
+--   Date and Time:   12:16 Saturday November 7, 2026
 --   Exported By:     JCALZADILLA
 --   Flashback:       0
 --   Export Type:     Application Export
@@ -117,7 +117,7 @@ wwv_imp_workspace.create_flow(
 ,p_substitution_string_01=>'APP_NAME'
 ,p_substitution_value_01=>'ADRE Inventory Item Creation'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261104140139'
+,p_last_upd_yyyymmddhh24miss=>'20261107121516'
 ,p_file_prefix => nvl(wwv_flow_application_install.get_static_app_file_prefix,'')
 ,p_files_version=>6
 ,p_print_server_type=>'NATIVE'
@@ -19007,11 +19007,644 @@ wwv_flow_imp_page.create_page(
 ,p_alias=>'REQUEST-WORKSPACE'
 ,p_step_title=>'Request Workspace'
 ,p_autocomplete_on_off=>'OFF'
+,p_javascript_code=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'/*',
+' * Adhesives Research - Page 20 organization autosave - 05-NOV-2026',
+' * Saves committed edits through existing APEX Interactive Grid DML.',
+' * Serializes automatic saves across the four organization grids.',
+' * Validates request and organization context before automatic saving.',
+' * Blocks page departure and submission while grid edits remain unsaved.',
+' */',
+'(function ($) {',
+'    "use strict";',
+'',
+'    const delayMs = 600;',
+'    const namespace = ".adreAutosaveORG";',
+'',
+'    const configurations = [',
+'        {',
+'            regionId: "ig_mas_attributes",',
+'            scope: "MASTER",',
+'            fields: ["ATTRIBUTE_VALUE", "VALUE_UOM_CODE"]',
+'        },',
+'        {',
+'            regionId: "ig_mas_categories",',
+'            scope: "MASTER",',
+'            fields: ["CATEGORY_VALUE"]',
+'        },',
+'        {',
+'            regionId: "ig_target_attributes",',
+'            scope: "TARGET",',
+'            fields: ["ATTRIBUTE_VALUE", "VALUE_UOM_CODE"]',
+'        },',
+'        {',
+'            regionId: "ig_target_categories",',
+'            scope: "TARGET",',
+'            fields: ["CATEGORY_VALUE"]',
+'        }',
+'    ];',
+'',
+'    const contexts = new Map();',
+'    const pending = new Set();',
+'',
+'    let active = null;',
+'    let noticeOpen = false;',
+'',
+'    // Check whether this context still owns the current grid model.',
+'    function isCurrent(context) {',
+'        return !context.disposed &&',
+'            contexts.get(context.regionId) === context;',
+'    }',
+'',
+'    // Normalize page item values for identifier comparisons.',
+'    function pageValue(itemName) {',
+'        const value = apex.item(itemName).getValue();',
+'',
+'        return value === null || value === undefined',
+'            ? ""',
+'            : String(value);',
+'    }',
+'',
+'    // Verify request, selected organization and changed row ownership.',
+'    function assertContext(context) {',
+'        if (',
+'            !context.itemRequestId ||',
+'            context.itemRequestId !== pageValue("P20_ITEM_REQUEST_ID")',
+'        ) {',
+'            throw new Error(',
+'                "The request changed. Reload and check the data."',
+'            );',
+'        }',
+'',
+'        const itemName = context.scope === "TARGET"',
+'            ? "P20_SELECTED_REQUEST_ORG_ID"',
+'            : "P20_MASTER_REQUEST_ORG_ID";',
+'',
+'        if (',
+'            !context.requestOrgId ||',
+'            context.requestOrgId !== pageValue(itemName)',
+'        ) {',
+'            throw new Error(',
+'                "The selected organization changed. Check pending edits."',
+'            );',
+'        }',
+'',
+'        for (const change of context.model.getChanges()) {',
+'            if (change.autoInserted && !change.updated) {',
+'                continue;',
+'            }',
+'',
+'            const record = change.record;',
+'',
+'            if (!record) {',
+'                throw new Error(',
+'                    "The changed record is unavailable."',
+'                );',
+'            }',
+'',
+'            const requestOrgId = context.model.getValue(',
+'                record,',
+'                "REQUEST_ORG_ID"',
+'            );',
+'',
+'            if (',
+'                requestOrgId === null ||',
+'                requestOrgId === undefined ||',
+'                String(requestOrgId) !== context.requestOrgId',
+'            ) {',
+'                throw new Error(',
+'                    "A changed row belongs to another request organization."',
+'                );',
+'            }',
+'        }',
+'    }',
+'',
+'    // Display the save state beside the region title.',
+'    function showStatus(context, text, isError) {',
+'        if (!isCurrent(context)) {',
+'            return;',
+'        }',
+'',
+'        const region$ = $("#" + context.regionId);',
+'        let status$ = region$',
+'            .find("[data-adre-autosave-status]")',
+'            .first();',
+'',
+'        if (!status$.length) {',
+'            status$ = $("<span>", {',
+'                "data-adre-autosave-status": "true",',
+'                "role": "status",',
+'                "aria-live": "polite"',
+'            }).css({',
+'                "margin-inline-start": "auto",',
+'                "padding": "0.25rem 0.75rem",',
+'                "font-size": "0.875rem"',
+'            });',
+'',
+'            const header$ = region$',
+'                .children(".t-Region-header")',
+'                .first();',
+'',
+'            if (header$.length) {',
+'                status$.appendTo(header$);',
+'            } else {',
+'                status$.prependTo(region$);',
+'            }',
+'        }',
+'',
+'        status$.text(text).css(',
+'            "color",',
+'            isError ? "#b42318" : ""',
+'        );',
+'    }',
+'',
+'    // Remove a scheduled save that has not started.',
+'    function cancelPending(context) {',
+'        window.clearTimeout(context.timer);',
+'        context.timer = null;',
+'        pending.delete(context);',
+'    }',
+'',
+'    // Debounce each grid before entering the common save queue.',
+'    function schedule(context) {',
+'        cancelPending(context);',
+'',
+'        if (!isCurrent(context) || context.blocked) {',
+'            return;',
+'        }',
+'',
+'        showStatus(context, "Pending changes...");',
+'',
+'        if (context.editing || active === context) {',
+'            return;',
+'        }',
+'',
+'        context.timer = window.setTimeout(function () {',
+'            context.timer = null;',
+'',
+'            if (isCurrent(context) && !context.editing) {',
+'                pending.add(context);',
+'                drain();',
+'            }',
+'        }, delayMs);',
+'    }',
+'',
+'    // Run one automatic save at a time across all four grids.',
+'    function drain() {',
+'        if (active) {',
+'            return;',
+'        }',
+'',
+'        for (const context of pending) {',
+'            pending.delete(context);',
+'',
+'            if (',
+'                isCurrent(context) &&',
+'                !context.editing &&',
+'                !context.blocked',
+'            ) {',
+'                active = context;',
+'                save(context);',
+'                return;',
+'            }',
+'        }',
+'    }',
+'',
+'    // Synchronize the editor and save through the existing APEX model.',
+'    async function save(context) {',
+'        try {',
+'            const region = apex.region(context.regionId);',
+'            const grid = region &&',
+'                region.call("getViews", "grid");',
+'',
+'            if (!grid || grid.model !== context.model) {',
+'                throw new Error(',
+'                    "The grid model changed. Reload and check the data."',
+'                );',
+'            }',
+'',
+'            await grid.view$.grid("finishEditing");',
+'',
+'            if (!isCurrent(context) || context.editing) {',
+'                return;',
+'            }',
+'',
+'            if (context.model.hasErrors()) {',
+'                throw new Error(',
+'                    "The grid contains validation errors."',
+'                );',
+'            }',
+'',
+'            if (!context.model.isChanged()) {',
+'                showStatus(context, "No pending changes");',
+'                return;',
+'            }',
+'',
+'            assertContext(context);',
+'            showStatus(context, "Saving...");',
+'',
+'            const request = context.model.save();',
+'',
+'            if (!request) {',
+'                showStatus(',
+'                    context,',
+'                    context.model.isChanged()',
+'                        ? "Waiting for the current save..."',
+'                        : "No pending changes"',
+'                );',
+'                return;',
+'            }',
+'',
+'            await request;',
+'',
+'            if (!isCurrent(context)) {',
+'                return;',
+'            }',
+'',
+'            if (context.model.hasErrors()) {',
+'                throw new Error(',
+'                    "The server returned validation errors."',
+'                );',
+'            }',
+'',
+'            showStatus(',
+'                context,',
+'                context.editing || context.model.isChanged()',
+'                    ? "Pending changes..."',
+'                    : "Saved"',
+'            );',
+'        } catch (error) {',
+'            if (isCurrent(context)) {',
+'                context.blocked = true;',
+'',
+'                showStatus(',
+'                    context,',
+'                    "Could not save. Review the cells and use Save.",',
+'                    true',
+'                );',
+'',
+'                apex.debug.error(',
+'                    context.regionId + " autosave failed",',
+'                    error',
+'                );',
+'            }',
+'        } finally {',
+'            if (active === context) {',
+'                active = null;',
+'            }',
+'',
+'            if (',
+'                isCurrent(context) &&',
+'                !context.blocked &&',
+'                !context.editing &&',
+'                context.model.isChanged()',
+'            ) {',
+'                schedule(context);',
+'            }',
+'',
+'            drain();',
+'        }',
+'    }',
+'',
+'    // Include edits, queued requests and active requests in departure checks.',
+'    function hasUnsavedChanges() {',
+'        if (active) {',
+'            return true;',
+'        }',
+'',
+'        for (const context of contexts.values()) {',
+'            if (',
+'                isCurrent(context) &&',
+'                (',
+'                    context.editing ||',
+'                    context.timer !== null ||',
+'                    pending.has(context) ||',
+'                    context.model.isChanged()',
+'                )',
+'            ) {',
+'                return true;',
+'            }',
+'        }',
+'',
+'        return false;',
+'    }',
+'',
+'    // Cancel departure immediately and schedule saves after that event ends.',
+'    function guardDeparture(event) {',
+'        if (!hasUnsavedChanges()) {',
+'            return true;',
+'        }',
+'',
+'        event.preventDefault();',
+'        event.stopImmediatePropagation();',
+'',
+'        window.setTimeout(function () {',
+'            const focused = document.activeElement;',
+'',
+'            if (',
+'                focused &&',
+'                configurations.some(function (configuration) {',
+'                    return $(focused).closest(',
+'                        "#" + configuration.regionId',
+'                    ).length > 0;',
+'                })',
+'            ) {',
+'                focused.blur();',
+'            }',
+'',
+'            let hasError = false;',
+'',
+'            for (const context of contexts.values()) {',
+'                if (!isCurrent(context)) {',
+'                    continue;',
+'                }',
+'',
+'                if (context.blocked) {',
+'                    hasError = true;',
+'                } else if (',
+'                    context.editing ||',
+'                    context.model.isChanged()',
+'                ) {',
+'                    schedule(context);',
+'                }',
+'            }',
+'',
+'            if (!noticeOpen) {',
+'                noticeOpen = true;',
+'',
+'                apex.message.alert(',
+'                    hasError',
+'                        ? "Some changes could not be saved. Review the grids before continuing."',
+'                        : "Changes are pending. Wait until the grids show Saved, then select the action again.",',
+'                    function () {',
+'                        noticeOpen = false;',
+'                    }',
+'                );',
+'            }',
+'        }, 0);',
+'',
+'        return false;',
+'    }',
+'',
+'    // Attach one subscription covering all editable rows in the model.',
+'    function attach(configuration, model) {',
+'        const regionId = configuration.regionId;',
+'        const previous = contexts.get(regionId);',
+'',
+'        if (',
+'            !model ||',
+'            (',
+'                previous &&',
+'                previous.model === model &&',
+'                !previous.disposed',
+'            )',
+'        ) {',
+'            return;',
+'        }',
+'',
+'        if (previous) {',
+'            cancelPending(previous);',
+'',
+'            if (!previous.disposed) {',
+'                previous.model.unSubscribe(',
+'                    "adre_autosave_" + regionId',
+'                );',
+'            }',
+'',
+'            previous.disposed = true;',
+'        }',
+'',
+'        const context = {',
+'            regionId: regionId,',
+'            scope: configuration.scope,',
+'            itemRequestId: pageValue("P20_ITEM_REQUEST_ID"),',
+'            requestOrgId: pageValue(',
+'                configuration.scope === "TARGET"',
+'                    ? "P20_SELECTED_REQUEST_ORG_ID"',
+'                    : "P20_MASTER_REQUEST_ORG_ID"',
+'            ),',
+'            model: model,',
+'            timer: null,',
+'            editing: false,',
+'            blocked: false,',
+'            disposed: false',
+'        };',
+'',
+'        contexts.set(regionId, context);',
+'',
+'        model.subscribe({',
+'            viewId: "adre_autosave_" + regionId,',
+'',
+'            onChange: function (type, change) {',
+'                if (type === "destroy") {',
+'                    context.disposed = true;',
+'                    cancelPending(context);',
+'                    return;',
+'                }',
+'',
+'                if (',
+'                    type === "set" &&',
+'                    change &&',
+'                    configuration.fields.includes(change.field)',
+'                ) {',
+'                    context.blocked = false;',
+'                    schedule(context);',
+'                }',
+'            }',
+'        });',
+'',
+'        showStatus(context, "Save");',
+'    }',
+'',
+'    for (const configuration of configurations) {',
+'        const selector = "#" + configuration.regionId;',
+'',
+'        // Reconnect when APEX creates or replaces a grid model.',
+'        $(document).on(',
+'            "interactivegridviewmodelcreate" + namespace,',
+'            selector,',
+'            function (event, data) {',
+'                if (data.viewId === "grid") {',
+'                    attach(configuration, data.model);',
+'                }',
+'            }',
+'        );',
+'',
+'        // Postpone saving while the user types.',
+'        $(document).on(',
+'            "input" + namespace,',
+'            selector + " :input",',
+'            function () {',
+'                const context = contexts.get(',
+'                    configuration.regionId',
+'                );',
+'',
+'                if (context && isCurrent(context)) {',
+'                    context.editing = true;',
+'                    cancelPending(context);',
+'                    showStatus(context, "Pending changes...");',
+'                }',
+'            }',
+'        );',
+'',
+'        // Schedule after a value is confirmed or loses focus.',
+'        $(document).on(',
+'            "change" + namespace + " focusout" + namespace,',
+'            selector + " :input",',
+'            function () {',
+'                const context = contexts.get(',
+'                    configuration.regionId',
+'                );',
+'',
+'                if (context && isCurrent(context)) {',
+'                    context.editing = false;',
+'',
+'                    window.setTimeout(function () {',
+'                        if (',
+'                            isCurrent(context) &&',
+'                            !context.editing',
+'                        ) {',
+'                            if (context.model.isChanged()) {',
+'                                schedule(context);',
+'                            } else if (',
+'                                active !== context &&',
+'                                !context.blocked',
+'                            ) {',
+'                                showStatus(',
+'                                    context,',
+'                                    "No pending changes"',
+'                                );',
+'                            }',
+'                        }',
+'                    }, 0);',
+'                }',
+'            }',
+'        );',
+'',
+'        // Recover after a successful manual save.',
+'        $(document).on(',
+'            "interactivegridsave" + namespace,',
+'            selector,',
+'            function (event, data) {',
+'                const context = contexts.get(',
+'                    configuration.regionId',
+'                );',
+'',
+'                if (',
+'                    data.status === "success" &&',
+'                    context &&',
+'                    isCurrent(context) &&',
+'                    active !== context',
+'                ) {',
+'                    context.blocked = false;',
+'',
+'                    if (',
+'                        context.editing ||',
+'                        context.model.isChanged()',
+'                    ) {',
+'                        schedule(context);',
+'                    } else {',
+'                        cancelPending(context);',
+'                        showStatus(context, "Saved");',
+'                    }',
+'                }',
+'            }',
+'        );',
+'    }',
+'',
+'    // Attach to available models after APEX initializes the page.',
+'    $(document).on(',
+'        "apexreadyend" + namespace,',
+'        function () {',
+'            for (const configuration of configurations) {',
+'                const region = apex.region(',
+'                    configuration.regionId',
+'                );',
+'',
+'                if (region) {',
+'                    const grid = region.call(',
+'                        "getViews",',
+'                        "grid"',
+'                    );',
+'',
+'                    if (grid) {',
+'                        attach(configuration, grid.model);',
+'                    }',
+'                }',
+'            }',
+'        }',
+'    );',
+'',
+'    // Cancel page submission while grid changes remain pending.',
+'    $(document).on(',
+'        "apexbeforepagesubmit" + namespace,',
+'        function (event) {',
+'            return guardDeparture(event);',
+'        }',
+'    );',
+'',
+'    // Protect full-page links such as Manage/View and menu navigation.',
+'    document.addEventListener("click", function (event) {',
+'        if (',
+'            event.defaultPrevented ||',
+'            event.button !== 0 ||',
+'            event.ctrlKey ||',
+'            event.metaKey ||',
+'            event.shiftKey ||',
+'            event.altKey',
+'        ) {',
+'            return;',
+'        }',
+'',
+'        const link = $(event.target).closest("a[href]")[0];',
+'',
+'        if (',
+'            !link ||',
+'            link.hasAttribute("download") ||',
+'            link.target.toLowerCase() === "_blank"',
+'        ) {',
+'            return;',
+'        }',
+'',
+'        const href = link.getAttribute("href");',
+'',
+'        if (!href || href.startsWith("#")) {',
+'            return;',
+'        }',
+'',
+'        const destination = new URL(',
+'            href,',
+'            window.location.href',
+'        );',
+'',
+'        if (',
+'            !["http:", "https:"].includes(destination.protocol) ||',
+'            (',
+'                destination.origin === window.location.origin &&',
+'                destination.pathname === window.location.pathname &&',
+'                destination.search === window.location.search &&',
+'                destination.hash',
+'            )',
+'        ) {',
+'            return;',
+'        }',
+'',
+'        guardDeparture(event);',
+'    }, true);',
+'',
+'    // Request the browser warning before reload or closing the tab.',
+'    window.addEventListener("beforeunload", function (event) {',
+'        if (hasUnsavedChanges()) {',
+'            event.preventDefault();',
+'            event.returnValue = "";',
+'        }',
+'    });',
+'})(apex.jQuery);'))
 ,p_page_template_options=>'#DEFAULT#'
 ,p_protection_level=>'C'
 ,p_page_component_map=>'23'
 ,p_last_updated_by=>'JCALZADILLA'
-,p_last_upd_yyyymmddhh24miss=>'20261103184944'
+,p_last_upd_yyyymmddhh24miss=>'20261105132133'
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(171257042274047)
@@ -19404,6 +20037,9 @@ wwv_flow_imp_page.create_page_plug(
 ,p_plug_display_when_condition=>'P20_ITEM_REQUEST_ID'
 ,p_prn_page_header=>'Review'
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_worksheet(
  p_id=>wwv_flow_imp.id(1034013192594846546)
 ,p_name=>'Review'
@@ -19847,6 +20483,7 @@ wwv_flow_imp_page.create_page_plug(
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(366246597063765)
 ,p_plug_name=>unistr('Attributes \00B7 MAS ')
+,p_region_name=>'ig_mas_attributes'
 ,p_parent_plug_id=>wwv_flow_imp.id(79130937437011)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody:margin-top-lg'
 ,p_component_template_options=>'#DEFAULT#'
@@ -19935,9 +20572,6 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_page_footer_alignment=>'CENTER'
 ,p_prn_border_color=>'#666666'
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_region_column(
  p_id=>wwv_flow_imp.id(364284094063746)
 ,p_name=>'APEX$ROW_SELECTOR'
@@ -20388,6 +21022,9 @@ wwv_flow_imp_page.create_ig_report(
 ,p_show_row_number=>false
 ,p_settings_area_expanded=>true
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_ig_report_view(
  p_id=>wwv_flow_imp.id(47699771066370)
 ,p_report_id=>wwv_flow_imp.id(47524893066370)
@@ -20536,6 +21173,7 @@ wwv_flow_imp_page.create_ig_report_column(
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(113322084089859523)
 ,p_plug_name=>unistr('Categories \00B7 MAS ')
+,p_region_name=>'ig_mas_categories'
 ,p_parent_plug_id=>wwv_flow_imp.id(79130937437011)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
 ,p_component_template_options=>'#DEFAULT#'
@@ -21009,9 +21647,6 @@ wwv_flow_imp_page.create_ig_report_column(
 ,p_is_visible=>true
 ,p_is_frozen=>false
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_ig_report_column(
  p_id=>wwv_flow_imp.id(38176858186806)
 ,p_view_id=>wwv_flow_imp.id(36847203186792)
@@ -21390,6 +22025,9 @@ wwv_flow_imp_page.create_worksheet(
 ,p_owner=>'JCALZADILLA'
 ,p_internal_uid=>88000000000000076
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_worksheet_column(
  p_id=>wwv_flow_imp.id(170793214274042)
 ,p_db_column_name=>'CATEGORY_SET_NAME'
@@ -21538,7 +22176,8 @@ wwv_flow_imp_page.create_page_plug(
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(92772300591423)
-,p_plug_name=>'Attributes'
+,p_plug_name=>unistr('Attributes \00B7 &P20_SELECTED_TARGET_CODE.')
+,p_region_name=>'ig_target_attributes'
 ,p_parent_plug_id=>wwv_flow_imp.id(14944735421632915)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody:margin-top-lg'
 ,p_component_template_options=>'#DEFAULT#'
@@ -21616,7 +22255,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_width=>11
 ,p_prn_height=>8.5
 ,p_prn_orientation=>'HORIZONTAL'
-,p_prn_page_header=>'Attributes'
+,p_prn_page_header=>unistr('Attributes \00B7 &P20_SELECTED_TARGET_CODE.')
 ,p_prn_page_header_font_color=>'#000000'
 ,p_prn_page_header_font_family=>'Helvetica'
 ,p_prn_page_header_font_weight=>'normal'
@@ -21999,9 +22638,6 @@ wwv_flow_imp_page.create_region_column(
 ,p_duplicate_value=>true
 ,p_include_in_export=>true
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_region_column(
  p_id=>wwv_flow_imp.id(94529248591440)
 ,p_name=>'VALUE_UOM_CODE'
@@ -22309,7 +22945,8 @@ wwv_flow_imp_page.create_ig_report_column(
 );
 wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(364102472063744)
-,p_plug_name=>'Categories '
+,p_plug_name=>unistr('Categories \00B7 &P20_SELECTED_TARGET_CODE.')
+,p_region_name=>'ig_target_categories'
 ,p_parent_plug_id=>wwv_flow_imp.id(14944735421632915)
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody:margin-top-lg'
 ,p_component_template_options=>'#DEFAULT#'
@@ -22356,7 +22993,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_width=>11
 ,p_prn_height=>8.5
 ,p_prn_orientation=>'HORIZONTAL'
-,p_prn_page_header=>'Categories '
+,p_prn_page_header=>unistr('Categories \00B7 &P20_SELECTED_TARGET_CODE.')
 ,p_prn_page_header_font_color=>'#000000'
 ,p_prn_page_header_font_family=>'Helvetica'
 ,p_prn_page_header_font_weight=>'normal'
@@ -22408,6 +23045,9 @@ wwv_flow_imp_page.create_region_column(
 ,p_is_primary_key=>false
 ,p_include_in_export=>true
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_region_column(
  p_id=>wwv_flow_imp.id(92238355591417)
 ,p_name=>'REQUIRED_FLAG'
@@ -23080,9 +23720,6 @@ wwv_flow_imp_page.create_page_plug(
 ,p_prn_page_footer_alignment=>'CENTER'
 ,p_prn_border_color=>'#666666'
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_worksheet(
  p_id=>wwv_flow_imp.id(14946726020632935)
 ,p_max_row_count=>'1000000'
@@ -23414,6 +24051,9 @@ wwv_flow_imp_page.create_page_button(
 ,p_grid_new_row=>'N'
 ,p_grid_new_column=>'Y'
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_page_button(
  p_id=>wwv_flow_imp.id(172374037274058)
 ,p_button_sequence=>30
@@ -23562,7 +24202,8 @@ wwv_flow_imp_page.create_page_item(
 ,p_name=>'P20_MASTER_PRIMARY_UOM_CODE'
 ,p_item_sequence=>10
 ,p_item_plug_id=>wwv_flow_imp.id(79130937437011)
-,p_prompt=>'Primary UOM'
+,p_use_cache_before_default=>'NO'
+,p_prompt=>'Organization Primary UOM'
 ,p_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'SELECT reqorg.primary_uom_code',
 '  FROM ops.adre_inv_item_request_org reqorg',
@@ -23583,6 +24224,8 @@ wwv_flow_imp_page.create_page_item(
 '   AND (uom.disable_date IS NULL OR uom.disable_date > SYSDATE)',
 ' ORDER BY cfg.display_sequence,',
 '          cfg.uom_code'))
+,p_lov_display_null=>'YES'
+,p_lov_null_text=>'-- Select Primary UOM --'
 ,p_cHeight=>1
 ,p_field_template=>wwv_flow_imp.id(1260790714796607811)
 ,p_item_template_options=>'#DEFAULT#'
@@ -23597,11 +24240,11 @@ wwv_flow_imp_page.create_page_item(
 ,p_item_plug_id=>wwv_flow_imp.id(14944735421632915)
 ,p_use_cache_before_default=>'NO'
 ,p_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'SELECT reqorg.record_version_number',
-'  FROM ops.adre_inv_item_request_org reqorg',
-' WHERE reqorg.item_request_id = :P20_ITEM_REQUEST_ID',
-'   AND reqorg.request_org_id = :P20_SELECTED_REQUEST_ORG_ID',
-'   AND reqorg.organization_role = ''TARGET'''))
+'SELECT org.record_version_number',
+'  FROM ops.adre_inv_item_request_org org',
+' WHERE org.item_request_id = :P20_ITEM_REQUEST_ID',
+'   AND org.request_org_id = :P20_SELECTED_REQUEST_ORG_ID',
+'   AND org.organization_role = ''TARGET'''))
 ,p_source_type=>'QUERY'
 ,p_display_as=>'NATIVE_HIDDEN'
 ,p_attribute_01=>'N'
@@ -23611,7 +24254,7 @@ wwv_flow_imp_page.create_page_item(
 ,p_name=>'P20_TARGET_PRIMARY_UOM_CODE'
 ,p_item_sequence=>20
 ,p_item_plug_id=>wwv_flow_imp.id(14944735421632915)
-,p_prompt=>'Primary UOM'
+,p_prompt=>'Organization Primary UOM'
 ,p_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'SELECT reqorg.primary_uom_code',
 '  FROM ops.adre_inv_item_request_org reqorg',
@@ -23633,6 +24276,8 @@ wwv_flow_imp_page.create_page_item(
 '   AND (uom.disable_date IS NULL OR uom.disable_date > SYSDATE)',
 ' ORDER BY cfg.display_sequence,',
 '          cfg.uom_code'))
+,p_lov_display_null=>'YES'
+,p_lov_null_text=>'-- Select Primary UOM --'
 ,p_cHeight=>1
 ,p_field_template=>wwv_flow_imp.id(1260790714796607811)
 ,p_item_template_options=>'#DEFAULT#'
@@ -24040,9 +24685,6 @@ wwv_flow_imp_page.create_page_da_action(
 ,p_wait_for_result=>'Y'
 ,p_build_option_id=>wwv_flow_imp.id(1260616098169607687)
 );
-end;
-/
-begin
 wwv_flow_imp_page.create_page_da_action(
  p_id=>wwv_flow_imp.id(95441940591449)
 ,p_event_id=>wwv_flow_imp.id(95162784591447)
@@ -24287,7 +24929,7 @@ wwv_flow_imp_page.create_page_da_action(
 ' WHERE reqorg.item_request_id = :P20_ITEM_REQUEST_ID',
 '   AND reqorg.request_org_id = :P20_SELECTED_REQUEST_ORG_ID',
 '   AND reqorg.organization_role = ''TARGET'''))
-,p_attribute_07=>'P20_ITEM_REQUEST_ID,P20_SELECTED_REQUEST_ORG_ID'
+,p_attribute_07=>'20_ITEM_REQUEST_ID, P20_SELECTED_REQUEST_ORG_ID, P20_TARGET_ORG_ROW_VERSION Y P20_TARGET_PRIMARY_UOM_CODE'
 ,p_attribute_08=>'Y'
 ,p_attribute_09=>'N'
 ,p_wait_for_result=>'Y'
@@ -24346,6 +24988,9 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_when_button_id=>wwv_flow_imp.id(172374037274058)
 ,p_internal_uid=>325517527767837250
 );
+end;
+/
+begin
 wwv_flow_imp_page.create_page_process(
  p_id=>wwv_flow_imp.id(366268326063766)
 ,p_process_sequence=>40
