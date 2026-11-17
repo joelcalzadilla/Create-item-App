@@ -3,8 +3,8 @@
 -- Package     : APPS.ADRE_CREATE_INV_ITEM
 -- Component   : Package Specification
 -- Author      : Joel Calzadilla
--- Date        : 03-NOV-2026
--- Release     : V41 (Rebase organization UOMs when the Item Type changes)
+-- Date        : 09-NOV-2026
+-- Release     : V42 (Reserve Item Number in OPS and validate EBS ownership)
 -- Purpose     : Create and configure Inventory Items from OPS requests.
 -- Design      : Resolve organizations, templates, attributes and categories
 --               from OPS configuration and Oracle EBS metadata.
@@ -38,6 +38,14 @@ CREATE OR REPLACE PACKAGE apps.adre_create_inv_item AS
     -- Called by: f_release_version (private wrapper) and external SQL diagnostics.
     -- No direct APEX page call.
     FUNCTION fnc_release_version RETURN VARCHAR2;
+
+    -- Return an Item Number error for an APEX field validation, or NULL.
+    -- The draft and EBS submit routines independently enforce this result.
+    FUNCTION fnc_item_number_error
+    (
+        p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
+        p_item_number     IN ops.adre_inv_item_request.item_number%TYPE
+    ) RETURN VARCHAR2;
 
     -- Public routines used by Oracle APEX request processes.
     -- Procedure: p_save_draft_request
@@ -511,8 +519,8 @@ END adre_create_inv_item;
 -- Package     : APPS.ADRE_CREATE_INV_ITEM
 -- Component   : Package Body
 -- Author      : Joel Calzadilla
--- Date        : 03-NOV-2026
--- Release     : V41 (Rebase organization UOMs when the Item Type changes)
+-- Date        : 09-NOV-2026
+-- Release     : V42 (Reserve Item Number in OPS and validate EBS ownership)
 -- Purpose     : Create and configure Inventory Items from OPS requests.
 -- Design      : Resolve organizations, templates, attributes and categories
 --               from OPS configuration and Oracle EBS metadata.
@@ -546,6 +554,13 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     g_default_user_name          CONSTANT VARCHAR2(100) := 'CWILLS';
     g_default_application_name   CONSTANT VARCHAR2(100) := 'Inventory';
     g_default_responsibility_key CONSTANT VARCHAR2(100) := 'INVENTORY';
+
+    -- Private declaration: the EBS processor calls this before its body.
+    PROCEDURE p_assert_item_number_available
+    (
+        p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
+        p_item_number     IN ops.adre_inv_item_request.item_number%TYPE
+    );
 
     -- ---------------------------------------------------------------------
     -- Routine    : pcd_write_log (forward declaration)
@@ -4859,13 +4874,11 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
             ROLLBACK;
             RETURN;
         END IF;
-        IF l_request.item_number IS NULL THEN
-            raise_application_error
-            (
-                -20695,
-                'ITEM_NUMBER is required.'
-            );
-        END IF;
+        p_assert_item_number_available
+        (
+            p_item_request_id,
+            l_request.item_number
+        );
         IF l_request.item_description IS NULL THEN
             raise_application_error
             (
@@ -8055,7 +8068,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     RETURN VARCHAR2
     IS
     BEGIN
-        RETURN 'V41';
+        RETURN 'V42';
     EXCEPTION
         WHEN OTHERS THEN
             pcd_write_log
@@ -8086,6 +8099,73 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     END f_release_version;
 
 
+
+    -- Check all OPS statuses and all EBS organizations for this Item Number.
+    -- An EBS item linked to the same request is permitted for a retry.
+    FUNCTION fnc_item_number_error
+    (
+        p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
+        p_item_number     IN ops.adre_inv_item_request.item_number%TYPE
+    ) RETURN VARCHAR2
+    IS
+        l_item_number ops.adre_inv_item_request.item_number%TYPE;
+        l_request_id  ops.adre_inv_item_request.item_request_id%TYPE;
+        l_ebs_item_id apps.mtl_system_items_kfv.inventory_item_id%TYPE;
+    BEGIN
+        l_item_number := UPPER(TRIM(p_item_number));
+
+        IF l_item_number IS NULL THEN
+            RETURN 'Item Number is required.';
+        END IF;
+
+        SELECT MIN(req.item_request_id)
+          INTO l_request_id
+          FROM ops.adre_inv_item_request req
+         WHERE UPPER(TRIM(req.item_number)) = l_item_number
+           AND (p_item_request_id IS NULL
+                OR req.item_request_id <> p_item_request_id);
+
+        IF l_request_id IS NOT NULL THEN
+            RETURN 'Item Number ' || TRIM(p_item_number) ||
+                   ' is reserved by request ' || l_request_id || '.';
+        END IF;
+
+        SELECT MIN(item.inventory_item_id)
+          INTO l_ebs_item_id
+          FROM apps.mtl_system_items_kfv item
+         WHERE UPPER(TRIM(item.concatenated_segments)) = l_item_number
+           AND NOT EXISTS
+               (
+                   SELECT 1
+                     FROM ops.adre_inv_item_request_org reqorg
+                    WHERE reqorg.item_request_id = p_item_request_id
+                      AND reqorg.ebs_inventory_item_id = item.inventory_item_id
+               );
+
+        IF l_ebs_item_id IS NOT NULL THEN
+            RETURN 'Item Number ' || TRIM(p_item_number) ||
+                   ' already exists in Oracle EBS (Inventory Item ID ' ||
+                   l_ebs_item_id || ').';
+        END IF;
+
+        RETURN NULL;
+    END fnc_item_number_error;
+
+    -- Raise before changing staged data or starting an EBS API call.
+    PROCEDURE p_assert_item_number_available
+    (
+        p_item_request_id IN ops.adre_inv_item_request.item_request_id%TYPE,
+        p_item_number     IN ops.adre_inv_item_request.item_number%TYPE
+    )
+    IS
+        l_error VARCHAR2(4000);
+    BEGIN
+        l_error := fnc_item_number_error(p_item_request_id, p_item_number);
+
+        IF l_error IS NOT NULL THEN
+            RAISE_APPLICATION_ERROR(-20941, l_error);
+        END IF;
+    END p_assert_item_number_available;
 
     -- Procedure: p_save_draft_request
     -- Purpose: Save a draft, initialize Master assignments, and resolve
@@ -8126,6 +8206,7 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
     l_default_uom := fnc_default_primary_uom(p_item_type_id, p_app_user);
     l_header_uom := p_primary_uom_code;
     IF p_item_request_id IS NULL THEN
+      p_assert_item_number_available(p_item_request_id, p_item_number);
       l_new := TRUE;
       INSERT INTO ops.adre_inv_item_request
         (request_number,request_status,item_type_id,base_part_number,
@@ -8153,6 +8234,8 @@ CREATE OR REPLACE PACKAGE BODY apps.adre_create_inv_item AS
         raise_application_error(-20965,
           'Item Type may be changed only for DRAFT or ERROR requests.');
       END IF;
+
+      p_assert_item_number_available(p_item_request_id, p_item_number);
 
       IF l_old_item_type_id <> p_item_type_id THEN
         SELECT COUNT(*)
@@ -8615,9 +8698,12 @@ END p_add_target_organization;
     )
     IS
         l_request_status ops.adre_inv_item_request.request_status%TYPE;
+        l_item_number    ops.adre_inv_item_request.item_number%TYPE;
     BEGIN
-        SELECT req.request_status
-          INTO l_request_status
+        SELECT req.request_status,
+               req.item_number
+          INTO l_request_status,
+               l_item_number
           FROM ops.adre_inv_item_request req
          WHERE req.item_request_id = p_item_request_id
            FOR UPDATE;
@@ -8629,6 +8715,8 @@ END p_add_target_organization;
                 'Only a DRAFT or ERROR request can be submitted to EBS.'
             );
         END IF;
+
+        p_assert_item_number_available(p_item_request_id, l_item_number);
 
         -- Keep values from earlier Item Types staged for review; only current
         -- configured attributes are eligible for EBS processing.
